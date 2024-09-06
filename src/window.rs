@@ -1,11 +1,11 @@
-use cosmic::app::Core;
+use cosmic::app::{Core, Command};
 use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
 use cosmic::iced::alignment::Horizontal;
 use cosmic::iced::wayland::popup::{destroy_popup, get_popup};
 use cosmic::iced::window::Id;
-use cosmic::iced::{Command, Length, Limits, Subscription};
+use cosmic::iced::{Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_style::application;
 use cosmic::iced_widget::{row, Column};
@@ -62,7 +62,7 @@ impl cosmic::Application for Window {
     fn init(
         core: Core,
         _flags: Self::Flags,
-    ) -> (Self, Command<cosmic::app::Message<Self::Message>>) {
+    ) -> (Self, Command<Self::Message>) {
         let monitors = monitor::init();
         let window = Window {
             core,
@@ -77,7 +77,7 @@ impl cosmic::Application for Window {
         Some(Message::PopupClosed(id))
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<cosmic::app::Message<Self::Message>> {
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::TogglePopup => {
                 return if let Some(p) = self.popup.take() {
