@@ -16,7 +16,7 @@ use cosmic::widget::{button, container, divider, icon, slider, text};
 use cosmic::{Element, Theme};
 use cosmic_time::once_cell::sync::Lazy;
 use cosmic_time::{anim, chain, id, Instant, Timeline};
-use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::mpsc::Sender;
 
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
@@ -55,7 +55,7 @@ pub enum Message {
 impl Window {
     pub fn send(&self, e: EventToSub) {
         if let Some(sender) = &self.sender {
-            block_on(sender.send(e));
+            block_on(sender.send(e)).unwrap();
         }
     }
 }
@@ -116,6 +116,9 @@ impl cosmic::Application for Window {
                 }
             }
             Message::SetScreenBrightness(id, brightness) => {
+                if let Some(monitor) = self.monitors.get_mut(&id) {
+                    monitor.brightness = brightness;
+                }
                 self.send(EventToSub::Set(id, brightness));
             }
             Message::ToggleMinMaxBrightness(id) => {

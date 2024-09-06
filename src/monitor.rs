@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::collections::HashMap;
 
 use cosmic::iced::{futures::SinkExt, subscription, Subscription};
 use ddc_hi::{Ddc, Display};
@@ -47,7 +44,7 @@ pub fn sub() -> Subscription<Message> {
 
             let (tx, mut rx) = mpsc::channel(1);
 
-            output.send(Message::Ready((res, tx))).await;
+            output.send(Message::Ready((res, tx))).await.unwrap();
 
             loop {
                 match rx.recv().await {
@@ -61,7 +58,8 @@ pub fn sub() -> Subscription<Message> {
                                                 id.clone(),
                                                 value.value(),
                                             ))
-                                            .await;
+                                            .await
+                                            .unwrap();
                                     }
                                     Err(err) => error!("{:?}", err),
                                 }
