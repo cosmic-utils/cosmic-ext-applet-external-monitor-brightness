@@ -1,9 +1,11 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use cosmic::iced::{futures::SinkExt, subscription, Subscription};
 use ddc_hi::{Ddc, Display};
-use log::error;
-use tokio::sync::mpsc;
+use log::{debug, error};
 
 use crate::window::Message;
 
@@ -17,6 +19,7 @@ pub struct Monitor {
     pub brightness: u16,
 }
 
+#[derive(Debug, Clone)]
 pub enum EventToSub {
     Refresh,
     Set(DisplayId, u16),
@@ -32,53 +35,111 @@ pub fn sub() -> Subscription<Message> {
             let mut res = HashMap::new();
 
             let mut displays = HashMap::new();
-            for display in Display::enumerate() {
+            for mut display in Display::enumerate() {
                 let mon = Monitor {
                     name: display.info.model_name.clone().unwrap_or_default(),
-                    brightness: 0,
+                    brightness: display
+                        .handle
+                        .get_vcp_feature(BRIGHTNESS_CODE)
+                        .unwrap_or_default()
+                        .value(),
                 };
 
                 res.insert(display.info.id.clone(), mon);
-                displays.insert(display.info.id.clone(), display);
+                displays.insert(display.info.id.clone(), Arc::new(Mutex::new(display)));
             }
 
-            let (tx, mut rx) = mpsc::channel(1);
+            let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
+            rx.mark_unchanged();
 
             output.send(Message::Ready((res, tx))).await.unwrap();
 
             loop {
-                match rx.recv().await {
-                    Some(event) => match event {
-                        EventToSub::Refresh => {
-                            for (id, display) in &mut displays {
-                                match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
-                                    Ok(value) => {
-                                        output
-                                            .send(Message::BrightnessWasUpdated(
-                                                id.clone(),
-                                                value.value(),
-                                            ))
-                                            .await
-                                            .unwrap();
-                                    }
-                                    Err(err) => error!("{:?}", err),
-                                }
-                            }
-                        }
-                        EventToSub::Set(id, value) => {
-                            if let Err(err) = displays
-                                .get_mut(&id)
+                rx.changed().await.unwrap();
+
+                let last = rx.borrow_and_update().clone();
+                debug!("{:?}", last);
+                match last {
+                    EventToSub::Refresh => {
+                        for (id, display) in &mut displays {
+                            let res = display
+                                .lock()
                                 .unwrap()
                                 .handle
-                                .set_vcp_feature(BRIGHTNESS_CODE, value)
-                            {
-                                error!("{:?}", err);
+                                .get_vcp_feature(BRIGHTNESS_CODE);
+
+                            debug!("{:?}", res);
+
+                            match res {
+                                Ok(value) => {
+                                    output
+                                        .send(Message::BrightnessWasUpdated(
+                                            id.clone(),
+                                            value.value(),
+                                        ))
+                                        .await
+                                        .unwrap();
+                                }
+                                Err(err) => error!("{:?}", err),
                             }
                         }
-                    },
-                    None => todo!(),
+                    }
+                    EventToSub::Set(id, value) => {
+                        let display = displays.get_mut(&id).unwrap().clone();
+
+                        if let Err(err) = display
+                            .lock()
+                            .unwrap()
+                            .handle
+                            .set_vcp_feature(BRIGHTNESS_CODE, value)
+                        {
+                            error!("{:?}", err);
+                        }
+
+                        let j = tokio::task::spawn_blocking(move || {});
+
+                        j.await.unwrap();
+                    }
                 }
             }
+
+            // loop {
+            //     match rx.recv().await {
+            //         Some(event) => match event {
+            //             EventToSub::Refresh => {
+            //                 // for (id, display) in &mut displays {
+            //                 //     match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
+            //                 //         Ok(value) => {
+            //                 //             output
+            //                 //                 .send(Message::BrightnessWasUpdated(
+            //                 //                     id.clone(),
+            //                 //                     value.value(),
+            //                 //                 ))
+            //                 //                 .await
+            //                 //                 .unwrap();
+            //                 //         }
+            //                 //         Err(err) => error!("{:?}", err),
+            //                 //     }
+            //                 // }
+            //             }
+            //             EventToSub::Set(id, value) => {
+            //                 let display = displays.get_mut(&id).unwrap().clone();
+
+            //                 tokio::task::spawn_blocking(move || {
+            //                     if let Err(err) = display
+            //                         .lock()
+            //                         .unwrap()
+            //                         .handle
+            //                         .set_vcp_feature(BRIGHTNESS_CODE, value)
+            //                     {
+            //                         error!("{:?}", err);
+            //                     }
+            //                 });
+            //             }
+            //         },
+            //         None => todo!(),
+            //     }
+            // }
         },
     )
 }

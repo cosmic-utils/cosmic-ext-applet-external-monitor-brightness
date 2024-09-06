@@ -5,7 +5,6 @@ use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
 use cosmic::iced::alignment::Horizontal;
-use cosmic::iced::futures::executor::block_on;
 use cosmic::iced::wayland::popup::{destroy_popup, get_popup};
 use cosmic::iced::window::Id;
 use cosmic::iced::{Length, Limits, Subscription};
@@ -16,10 +15,11 @@ use cosmic::widget::{button, container, divider, icon, slider, text};
 use cosmic::{Element, Theme};
 use cosmic_time::once_cell::sync::Lazy;
 use cosmic_time::{anim, chain, id, Instant, Timeline};
-use tokio::sync::mpsc::Sender;
-
+use log::debug;
+// use tokio::sync::mpsc::Sender;
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
+use tokio::sync::watch::Sender;
 
 static SHOW_MEDIA_CONTROLS: Lazy<id::Toggler> = Lazy::new(id::Toggler::unique);
 
@@ -55,7 +55,9 @@ pub enum Message {
 impl Window {
     pub fn send(&self, e: EventToSub) {
         if let Some(sender) = &self.sender {
-            block_on(sender.send(e)).unwrap();
+            sender.send(e).unwrap();
+
+            // block_on(sender.send(e)).unwrap();
         }
     }
 }
@@ -88,6 +90,8 @@ impl cosmic::Application for Window {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        debug!("{:?}", message);
+
         match message {
             Message::TogglePopup => {
                 return if let Some(p) = self.popup.take() {
