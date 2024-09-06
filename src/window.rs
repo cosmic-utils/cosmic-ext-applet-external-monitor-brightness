@@ -5,6 +5,7 @@ use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
 use cosmic::iced::alignment::Horizontal;
+use cosmic::iced::futures::executor::block_on;
 use cosmic::iced::wayland::popup::{destroy_popup, get_popup};
 use cosmic::iced::window::Id;
 use cosmic::iced::{Length, Limits, Subscription};
@@ -15,8 +16,9 @@ use cosmic::widget::{button, container, divider, icon, slider, text};
 use cosmic::{Element, Theme};
 use cosmic_time::once_cell::sync::Lazy;
 use cosmic_time::{anim, chain, id, Instant, Timeline};
+use tokio::sync::mpsc::{self, Sender};
 
-use crate::monitor::Monitor;
+use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
 
 static SHOW_MEDIA_CONTROLS: Lazy<id::Toggler> = Lazy::new(id::Toggler::unique);
@@ -27,8 +29,6 @@ const ICON_MEDIUM: &str = "cosmic-applet-battery-display-brightness-medium-symbo
 const ICON_LOW: &str = "cosmic-applet-battery-display-brightness-low-symbolic";
 const ICON_OFF: &str = "cosmic-applet-battery-display-brightness-off-symbolic";
 
-pub type DisplayId = String;
-
 #[derive(Default)]
 pub struct Window {
     core: Core,
@@ -36,18 +36,28 @@ pub struct Window {
     monitors: HashMap<DisplayId, Monitor>,
     theme_mode_config: ThemeMode,
     timeline: Timeline,
+    sender: Option<Sender<EventToSub>>,
 }
 
 #[derive(Clone, Debug)]
 pub enum Message {
     TogglePopup,
     PopupClosed(Id),
-    SetScreenBrightness(usize, u16),
-    ToggleMinMaxBrightness(usize),
+    SetScreenBrightness(String, u16),
+    ToggleMinMaxBrightness(String),
     ThemeModeConfigChanged(ThemeMode),
     SetDarkMode(chain::Toggler, bool),
     Frame(Instant),
-    HandleReady(mpsc::Sender<Input>)
+    Ready((HashMap<DisplayId, Monitor>, Sender<EventToSub>)),
+    BrightnessWasUpdated(DisplayId, u16),
+}
+
+impl Window {
+    pub fn send(&self, e: EventToSub) {
+        if let Some(sender) = &self.sender {
+            block_on(sender.send(e));
+        }
+    }
 }
 
 impl cosmic::Application for Window {
@@ -65,10 +75,8 @@ impl cosmic::Application for Window {
     }
 
     fn init(core: Core, _flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        let monitors = monitor::init();
         let window = Window {
             core,
-            monitors,
             ..Default::default()
         };
 
@@ -85,9 +93,7 @@ impl cosmic::Application for Window {
                 return if let Some(p) = self.popup.take() {
                     destroy_popup(p)
                 } else {
-                    for monitor in &mut self.monitors {
-                        monitor.update_brightness();
-                    }
+                    self.send(EventToSub::Refresh);
 
                     let new_id = Id::unique();
                     self.popup.replace(new_id);
@@ -110,14 +116,17 @@ impl cosmic::Application for Window {
                 }
             }
             Message::SetScreenBrightness(id, brightness) => {
-                self.monitors[id].set_screen_brightness(brightness);
+                self.send(EventToSub::Set(id, brightness));
             }
             Message::ToggleMinMaxBrightness(id) => {
-                let monitor = &mut self.monitors[id];
-                monitor.set_screen_brightness(match monitor.brightness {
-                    0 => 100,
-                    _ => 0,
-                });
+                if let Some(monitor) = self.monitors.get_mut(&id) {
+                    let new_val = match monitor.brightness {
+                        0 => 100,
+                        _ => 0,
+                    };
+                    monitor.brightness = new_val;
+                    self.send(EventToSub::Set(id, new_val));
+                }
             }
             Message::ThemeModeConfigChanged(config) => {
                 self.theme_mode_config = config;
@@ -130,6 +139,15 @@ impl cosmic::Application for Window {
                 }
             }
             Message::Frame(now) => self.timeline.now(now),
+            Message::Ready((mon, sender)) => {
+                self.monitors = mon;
+                self.sender.replace(sender);
+            }
+            Message::BrightnessWasUpdated(id, value) => {
+                if let Some(monitor) = self.monitors.get_mut(&id) {
+                    monitor.brightness = value;
+                }
+            }
         }
         Command::none()
     }
@@ -139,7 +157,8 @@ impl cosmic::Application for Window {
             .applet
             .icon_button(
                 self.monitors
-                    .first()
+                    .values()
+                    .next()
                     .map(|v| brightness_icon(v.brightness))
                     .unwrap_or(ICON_HIGH),
             )
@@ -149,7 +168,7 @@ impl cosmic::Application for Window {
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
         let mut content = Column::new();
-        for (id, monitor) in self.monitors.iter().enumerate() {
+        for (id, monitor) in &self.monitors {
             content = content.push(padded_control(
                 row![
                     button::icon(
@@ -157,10 +176,10 @@ impl cosmic::Application for Window {
                             .size(24)
                             .symbolic(true)
                     )
-                    .tooltip(monitor.display.info.model_name.clone().unwrap_or_default())
-                    .on_press(Message::ToggleMinMaxBrightness(id)),
+                    .tooltip(&monitor.name)
+                    .on_press(Message::ToggleMinMaxBrightness(id.clone())),
                     slider(0..=100, monitor.brightness, move |brightness| {
-                        Message::SetScreenBrightness(id, brightness)
+                        Message::SetScreenBrightness(id.clone(), brightness)
                     }),
                     text(format!("{:.0}%", monitor.brightness))
                         .size(16)
@@ -202,6 +221,7 @@ impl cosmic::Application for Window {
             self.timeline
                 .as_subscription()
                 .map(|(_, now)| Message::Frame(now)),
+            monitor::sub(),
         ])
     }
 
