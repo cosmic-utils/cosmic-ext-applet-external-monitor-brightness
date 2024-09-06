@@ -15,7 +15,6 @@ use cosmic::widget::{button, container, divider, icon, slider, text};
 use cosmic::{Element, Theme};
 use cosmic_time::once_cell::sync::Lazy;
 use cosmic_time::{anim, chain, id, Instant, Timeline};
-use log::debug;
 // use tokio::sync::mpsc::Sender;
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
@@ -90,8 +89,6 @@ impl cosmic::Application for Window {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
-        debug!("{:?}", message);
-
         match message {
             Message::TogglePopup => {
                 return if let Some(p) = self.popup.take() {

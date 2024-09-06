@@ -1,6 +1,9 @@
 use crate::localize::localize;
 use crate::window::Window;
 
+#[macro_use]
+extern crate log;
+
 mod localize;
 mod monitor;
 mod window;

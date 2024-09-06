@@ -5,7 +5,6 @@ use std::{
 
 use cosmic::iced::{futures::SinkExt, subscription, Subscription};
 use ddc_hi::{Ddc, Display};
-use log::{debug, error};
 
 use crate::window::Message;
 
@@ -58,7 +57,6 @@ pub fn sub() -> Subscription<Message> {
                 rx.changed().await.unwrap();
 
                 let last = rx.borrow_and_update().clone();
-                debug!("{:?}", last);
                 match last {
                     EventToSub::Refresh => {
                         for (id, display) in &mut displays {
@@ -67,8 +65,6 @@ pub fn sub() -> Subscription<Message> {
                                 .unwrap()
                                 .handle
                                 .get_vcp_feature(BRIGHTNESS_CODE);
-
-                            debug!("{:?}", res);
 
                             match res {
                                 Ok(value) => {
@@ -87,59 +83,21 @@ pub fn sub() -> Subscription<Message> {
                     EventToSub::Set(id, value) => {
                         let display = displays.get_mut(&id).unwrap().clone();
 
-                        if let Err(err) = display
-                            .lock()
-                            .unwrap()
-                            .handle
-                            .set_vcp_feature(BRIGHTNESS_CODE, value)
-                        {
-                            error!("{:?}", err);
-                        }
-
-                        let j = tokio::task::spawn_blocking(move || {});
+                        let j = tokio::task::spawn_blocking(move || {
+                            if let Err(err) = display
+                                .lock()
+                                .unwrap()
+                                .handle
+                                .set_vcp_feature(BRIGHTNESS_CODE, value)
+                            {
+                                error!("{:?}", err);
+                            }
+                        });
 
                         j.await.unwrap();
                     }
                 }
             }
-
-            // loop {
-            //     match rx.recv().await {
-            //         Some(event) => match event {
-            //             EventToSub::Refresh => {
-            //                 // for (id, display) in &mut displays {
-            //                 //     match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
-            //                 //         Ok(value) => {
-            //                 //             output
-            //                 //                 .send(Message::BrightnessWasUpdated(
-            //                 //                     id.clone(),
-            //                 //                     value.value(),
-            //                 //                 ))
-            //                 //                 .await
-            //                 //                 .unwrap();
-            //                 //         }
-            //                 //         Err(err) => error!("{:?}", err),
-            //                 //     }
-            //                 // }
-            //             }
-            //             EventToSub::Set(id, value) => {
-            //                 let display = displays.get_mut(&id).unwrap().clone();
-
-            //                 tokio::task::spawn_blocking(move || {
-            //                     if let Err(err) = display
-            //                         .lock()
-            //                         .unwrap()
-            //                         .handle
-            //                         .set_vcp_feature(BRIGHTNESS_CODE, value)
-            //                     {
-            //                         error!("{:?}", err);
-            //                     }
-            //                 });
-            //             }
-            //         },
-            //         None => todo!(),
-            //     }
-            // }
         },
     )
 }
