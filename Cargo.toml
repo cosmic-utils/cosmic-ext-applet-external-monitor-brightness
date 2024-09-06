@@ -9,12 +9,12 @@ cosmic-time = { git = "https://github.com/pop-os/cosmic-time", default-features 
     "libcosmic",
     "once_cell",
 ] }
-i18n-embed = { version = "0.14.1", features = [
+i18n-embed = { version = "0.15", features = [
     "fluent-system",
     "desktop-requester",
 ] }
-i18n-embed-fl = "0.8"
-rust-embed = "8.3.0"
+i18n-embed-fl = "0.9"
+rust-embed = "8"
 once_cell = "1.19.0"
 
 [dependencies.libcosmic]
