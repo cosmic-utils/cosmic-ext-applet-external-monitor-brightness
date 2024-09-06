@@ -6,6 +6,7 @@ mod monitor;
 mod window;
 
 fn main() -> cosmic::iced::Result {
+    env_logger::init();
     localize();
     cosmic::applet::run::<Window>(false, ())
 }

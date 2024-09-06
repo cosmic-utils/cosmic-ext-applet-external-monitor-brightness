@@ -16,6 +16,8 @@ i18n-embed = { version = "0.15", features = [
 i18n-embed-fl = "0.9"
 rust-embed = "8"
 once_cell = "1.19.0"
+log = "0.4.22"
+env_logger = "0.11.5"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"

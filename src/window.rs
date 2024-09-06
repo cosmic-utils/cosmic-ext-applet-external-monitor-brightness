@@ -14,8 +14,8 @@ use cosmic::{Element, Theme};
 use cosmic_time::once_cell::sync::Lazy;
 use cosmic_time::{anim, chain, id, Instant, Timeline};
 
-use crate::fl;
 use crate::monitor::Monitor;
+use crate::{fl, monitor};
 
 static SHOW_MEDIA_CONTROLS: Lazy<id::Toggler> = Lazy::new(id::Toggler::unique);
 
@@ -63,7 +63,7 @@ impl cosmic::Application for Window {
         core: Core,
         _flags: Self::Flags,
     ) -> (Self, Command<cosmic::app::Message<Self::Message>>) {
-        let monitors = Monitor::new_vec();
+        let monitors = monitor::init();
         let window = Window {
             core,
             monitors,
