@@ -1,4 +1,4 @@
-use cosmic::app::{Core, Command};
+use cosmic::app::{Command, Core};
 use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
@@ -59,10 +59,7 @@ impl cosmic::Application for Window {
         &mut self.core
     }
 
-    fn init(
-        core: Core,
-        _flags: Self::Flags,
-    ) -> (Self, Command<Self::Message>) {
+    fn init(core: Core, _flags: Self::Flags) -> (Self, Command<Self::Message>) {
         let monitors = monitor::init();
         let window = Window {
             core,
