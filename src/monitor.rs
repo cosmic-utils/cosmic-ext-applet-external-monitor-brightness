@@ -1,10 +1,12 @@
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use cosmic::iced::{futures::SinkExt, subscription, Subscription};
 use ddc_hi::{Ddc, Display};
+use tokio::sync::watch::Receiver;
 
 use crate::window::Message;
 
@@ -24,6 +26,12 @@ pub enum EventToSub {
     Set(DisplayId, u16),
 }
 
+enum State {
+    Waiting,
+    Fetch,
+    Ready(HashMap<String, Arc<Mutex<Display>>>, Receiver<EventToSub>),
+}
+
 pub fn sub() -> Subscription<Message> {
     struct Worker;
 
@@ -31,70 +39,102 @@ pub fn sub() -> Subscription<Message> {
         std::any::TypeId::of::<Worker>(),
         100,
         |mut output| async move {
-            let mut res = HashMap::new();
+            let mut state = State::Waiting;
 
-            let mut displays = HashMap::new();
-            for mut display in Display::enumerate() {
-                let mon = Monitor {
-                    name: display.info.model_name.clone().unwrap_or_default(),
-                    brightness: display
-                        .handle
-                        .get_vcp_feature(BRIGHTNESS_CODE)
-                        .unwrap_or_default()
-                        .value(),
-                };
-
-                res.insert(display.info.id.clone(), mon);
-                displays.insert(display.info.id.clone(), Arc::new(Mutex::new(display)));
-            }
-
-            let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
-            rx.mark_unchanged();
-
-            output.send(Message::Ready((res, tx))).await.unwrap();
+            let mut duration = Duration::from_millis(50);
 
             loop {
-                rx.changed().await.unwrap();
+                match &mut state {
+                    State::Waiting => {
+                        tokio::time::sleep(duration).await;
+                        duration *= 2;
+                        state = State::Fetch;
+                    }
+                    State::Fetch => {
+                        let mut res = HashMap::new();
 
-                let last = rx.borrow_and_update().clone();
-                match last {
-                    EventToSub::Refresh => {
-                        for (id, display) in &mut displays {
-                            let res = display
-                                .lock()
-                                .unwrap()
-                                .handle
-                                .get_vcp_feature(BRIGHTNESS_CODE);
+                        let mut displays = HashMap::new();
 
-                            match res {
-                                Ok(value) => {
-                                    output
-                                        .send(Message::BrightnessWasUpdated(
-                                            id.clone(),
-                                            value.value(),
-                                        ))
-                                        .await
-                                        .unwrap();
+                        debug!("start enumerate");
+
+                        for mut display in Display::enumerate() {
+                            let brightness = match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
+                                Ok(v) => v.value(),
+                                Err(e) => {
+                                    // on my machine, i get this error when starting the session
+                                    // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
+                                    // This go away after the third attempt
+                                    error!("can't get_vcp_feature: {e}");
+                                    state = State::Waiting;
+                                    break;
                                 }
-                                Err(err) => error!("{:?}", err),
+                            };
+
+                            let mon = Monitor {
+                                name: display.info.model_name.clone().unwrap_or_default(),
+                                brightness,
+                            };
+
+                            res.insert(display.info.id.clone(), mon);
+                            displays.insert(display.info.id.clone(), Arc::new(Mutex::new(display)));
+                        }
+
+                        if let State::Waiting = state {
+                            continue;
+                        }
+
+                        debug!("end enumerate");
+
+                        let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
+                        rx.mark_unchanged();
+
+                        output.send(Message::Ready((res, tx))).await.unwrap();
+                        state = State::Ready(displays, rx);
+                    }
+                    State::Ready(displays, rx) => {
+                        rx.changed().await.unwrap();
+
+                        let last = rx.borrow_and_update().clone();
+                        match last {
+                            EventToSub::Refresh => {
+                                for (id, display) in displays {
+                                    let res = display
+                                        .lock()
+                                        .unwrap()
+                                        .handle
+                                        .get_vcp_feature(BRIGHTNESS_CODE);
+
+                                    match res {
+                                        Ok(value) => {
+                                            output
+                                                .send(Message::BrightnessWasUpdated(
+                                                    id.clone(),
+                                                    value.value(),
+                                                ))
+                                                .await
+                                                .unwrap();
+                                        }
+                                        Err(err) => error!("{:?}", err),
+                                    }
+                                }
+                            }
+                            EventToSub::Set(id, value) => {
+                                let display = displays.get_mut(&id).unwrap().clone();
+
+                                let j = tokio::task::spawn_blocking(move || {
+                                    if let Err(err) = display
+                                        .lock()
+                                        .unwrap()
+                                        .handle
+                                        .set_vcp_feature(BRIGHTNESS_CODE, value)
+                                    {
+                                        error!("{:?}", err);
+                                    }
+                                });
+
+                                j.await.unwrap();
                             }
                         }
-                    }
-                    EventToSub::Set(id, value) => {
-                        let display = displays.get_mut(&id).unwrap().clone();
-
-                        let j = tokio::task::spawn_blocking(move || {
-                            if let Err(err) = display
-                                .lock()
-                                .unwrap()
-                                .handle
-                                .set_vcp_feature(BRIGHTNESS_CODE, value)
-                            {
-                                error!("{:?}", err);
-                            }
-                        });
-
-                        j.await.unwrap();
                     }
                 }
             }

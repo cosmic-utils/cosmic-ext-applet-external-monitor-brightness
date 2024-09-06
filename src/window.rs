@@ -89,6 +89,8 @@ impl cosmic::Application for Window {
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        debug!("{:?}", message);
+
         match message {
             Message::TogglePopup => {
                 return if let Some(p) = self.popup.take() {
@@ -164,7 +166,7 @@ impl cosmic::Application for Window {
                     .values()
                     .next()
                     .map(|v| brightness_icon(v.brightness))
-                    .unwrap_or(ICON_HIGH),
+                    .unwrap_or(ICON_OFF),
             )
             .on_press(Message::TogglePopup)
             .into()
