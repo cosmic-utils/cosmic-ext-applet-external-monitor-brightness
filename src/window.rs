@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cosmic::app::{Command, Core};
 use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
@@ -25,11 +27,13 @@ const ICON_MEDIUM: &str = "cosmic-applet-battery-display-brightness-medium-symbo
 const ICON_LOW: &str = "cosmic-applet-battery-display-brightness-low-symbolic";
 const ICON_OFF: &str = "cosmic-applet-battery-display-brightness-off-symbolic";
 
+pub type DisplayId = String;
+
 #[derive(Default)]
 pub struct Window {
     core: Core,
     popup: Option<Id>,
-    monitors: Vec<Monitor>,
+    monitors: HashMap<DisplayId, Monitor>,
     theme_mode_config: ThemeMode,
     timeline: Timeline,
 }
@@ -43,6 +47,7 @@ pub enum Message {
     ThemeModeConfigChanged(ThemeMode),
     SetDarkMode(chain::Toggler, bool),
     Frame(Instant),
+    HandleReady(mpsc::Sender<Input>)
 }
 
 impl cosmic::Application for Window {

@@ -976,6 +976,7 @@ dependencies = [
  "log",
  "once_cell",
  "rust-embed",
+ "tokio",
 ]
 
 [[package]]
@@ -4658,6 +4659,7 @@ dependencies = [
  "bytes",
  "libc",
  "mio 1.0.2",
+ "parking_lot 0.12.3",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2 0.5.7",
