@@ -189,7 +189,7 @@ impl cosmic::Application for Window {
             .into()
     }
 
-    fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
+    fn subscription(&self) -> Subscription<Self::Message> {
         Subscription::batch(vec![
             self.core
                 .watch_config(THEME_MODE_ID)
