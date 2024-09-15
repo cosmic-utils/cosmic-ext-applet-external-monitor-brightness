@@ -133,6 +133,7 @@ pub fn sub() -> Subscription<Message> {
                                 });
 
                                 j.await.unwrap();
+                                tokio::time::sleep(Duration::from_millis(50)).await;
                             }
                         }
                     }
