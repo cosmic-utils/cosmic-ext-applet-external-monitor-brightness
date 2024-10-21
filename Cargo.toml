@@ -5,22 +5,14 @@ edition = "2021"
 
 [dependencies]
 ddc-hi = "0.4"
-cosmic-time = { git = "https://github.com/pop-os/cosmic-time", default-features = false, features = [
-    "libcosmic",
-    "once_cell",
-] }
 i18n-embed = { version = "0.15", features = [
     "fluent-system",
     "desktop-requester",
 ] }
 i18n-embed-fl = "0.9"
 rust-embed = "8"
-once_cell = "1"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = [
-    "fmt",
-    "env-filter",
-] }
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-journald = "0.3"
 tokio = { version = "1", features = ["full"] }
 

@@ -34,5 +34,5 @@ fn setup_logs() {
 fn main() -> cosmic::iced::Result {
     setup_logs();
     localize();
-    cosmic::applet::run::<Window>(false, ())
+    cosmic::applet::run::<Window>(())
 }
