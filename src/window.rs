@@ -5,11 +5,11 @@ use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
 use cosmic::iced::window::Id;
-use cosmic::iced::{Alignment, Length, Limits, Subscription};
+use cosmic::iced::{application, Alignment, Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::{button, column, divider, horizontal_space, icon, row, slider, text, toggler};
-use cosmic::Element;
+use cosmic::{iced_runtime, Element, Theme};
 // use tokio::sync::mpsc::Sender;
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
@@ -208,6 +208,10 @@ impl cosmic::Application for Window {
                     )),
             )
             .into()
+    }
+
+    fn style(&self) -> Option<iced_runtime::Appearance> {
+        Some(cosmic::applet::style())
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
