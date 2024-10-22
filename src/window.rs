@@ -5,11 +5,13 @@ use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
 use cosmic::iced::window::Id;
-use cosmic::iced::{application, Alignment, Length, Limits, Subscription};
+use cosmic::iced::{Alignment, Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
-use cosmic::widget::{button, column, divider, horizontal_space, icon, row, slider, text, toggler};
-use cosmic::{iced_runtime, Element, Theme};
+use cosmic::widget::{
+    button, column, divider, horizontal_space, icon, mouse_area, row, slider, text, toggler,
+};
+use cosmic::{iced_runtime, Element};
 // use tokio::sync::mpsc::Sender;
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
@@ -96,9 +98,9 @@ impl cosmic::Application for Window {
                             .applet
                             .get_popup_settings(Id::RESERVED, new_id, None, None, None);
                     popup_settings.positioner.size_limits = Limits::NONE
-                        .max_width(372.0)
-                        // .min_width(300.0)
-                        // .min_height(200.0)
+                        .max_width(250.0)
+                        .min_width(300.0)
+                        .min_height(200.0)
                         .max_height(1080.0);
                     get_popup(popup_settings)
                 };
@@ -197,14 +199,17 @@ impl cosmic::Application for Window {
                         None
                     })
                     .push(padded_control(
-                        row()
-                            .align_y(Alignment::Center)
-                            .push(text(fl!("dark-mode")))
-                            .push(horizontal_space())
-                            .push(
-                                toggler(self.theme_mode_config.is_dark)
-                                    .on_toggle(Message::SetDarkMode),
-                            ),
+                        mouse_area(
+                            row()
+                                .align_y(Alignment::Center)
+                                .push(text(fl!("dark-mode")))
+                                .push(horizontal_space())
+                                .push(
+                                    toggler(self.theme_mode_config.is_dark)
+                                        .on_toggle(Message::SetDarkMode),
+                                ),
+                        )
+                        .on_press(Message::SetDarkMode(!self.theme_mode_config.is_dark)),
                     )),
             )
             .into()
