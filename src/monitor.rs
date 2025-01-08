@@ -11,7 +11,7 @@ use cosmic::iced::{
 use ddc_hi::{Ddc, Display};
 use tokio::sync::watch::Receiver;
 
-use crate::window::Message;
+use crate::app::Message;
 
 const BRIGHTNESS_CODE: u8 = 0x10;
 

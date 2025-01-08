@@ -1,12 +1,12 @@
+use crate::app::Window;
 use crate::localize::localize;
-use crate::window::Window;
 
 #[macro_use]
 extern crate tracing;
 
+mod app;
 mod localize;
 mod monitor;
-mod window;
 
 fn setup_logs() {
     use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
