@@ -2,6 +2,8 @@
 name = "cosmic-ext-applet-external-monitor-brightness"
 version = "0.1.0"
 edition = "2021"
+license = "GPL-3.0-only"
+repository = "https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness"
 
 [dependencies]
 ddc-hi = "0.4"
