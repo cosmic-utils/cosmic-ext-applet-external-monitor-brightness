@@ -30,7 +30,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: install system deps
-        run: sudo apt install libxkbcommon-dev libudev-sys
+        run: sudo apt-get install libxkbcommon-dev libudev-dev
 
       - name: Run tests
         run: cargo test --workspace --all-features
@@ -49,7 +49,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: install system deps
-        run: sudo apt install libxkbcommon-dev libudev-sys
+        run: sudo apt-get install libxkbcommon-dev libudev-dev
 
       - name: Run clippy
         run: cargo clippy --workspace --all-features
