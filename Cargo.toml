@@ -22,3 +22,6 @@ tokio = { version = "1", features = ["full"] }
 git = "https://github.com/pop-os/libcosmic"
 default-features = false
 features = ["applet", "tokio", "wayland", "dbus-config"]
+
+[patch."https://github.com/smithay/client-toolkit.git"]
+sctk = { package = "smithay-client-toolkit", version = "=0.19.2" }
