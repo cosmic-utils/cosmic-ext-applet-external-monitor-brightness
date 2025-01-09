@@ -9,7 +9,7 @@ use cosmic::iced::{
     stream,
 };
 use ddc_hi::{Ddc, Display};
-use tokio::sync::watch::Receiver;
+use tokio::time::sleep;
 
 use crate::app::Message;
 
@@ -30,110 +30,162 @@ pub enum EventToSub {
 }
 
 enum State {
-    Waiting,
-    Fetch,
-    Ready(HashMap<String, Arc<Mutex<Display>>>, Receiver<EventToSub>),
+    Fetching,
+    Ready,
 }
+
+const MAX_WAITING: Duration = Duration::from_secs(4);
+const DEFAULT_WAITING: Duration = Duration::from_millis(50);
 
 pub fn sub() -> impl Stream<Item = Message> {
     stream::channel(100, |mut output| async move {
-        let mut state = State::Waiting;
+        let displays = Arc::new(Mutex::new(HashMap::new()));
 
-        let mut duration = Duration::from_millis(50);
+        let mut rx = {
+            let mut res = HashMap::new();
+
+            for display in Display::enumerate() {
+                let mon = Monitor {
+                    name: display.info.model_name.clone().unwrap_or_default(),
+                    brightness: 0,
+                };
+
+                res.insert(display.info.id.clone(), mon);
+                displays
+                    .lock()
+                    .unwrap()
+                    .insert(display.info.id.clone(), display);
+            }
+
+            let (tx, rx) = tokio::sync::mpsc::channel(100);
+            output.send(Message::Ready((res, tx))).await.unwrap();
+            rx
+        };
+
+        let mut state = State::Fetching;
+        let mut duration = DEFAULT_WAITING;
+
+        let mut request_buff = Vec::new();
 
         loop {
             match &mut state {
-                State::Waiting => {
+                State::Fetching => {
                     tokio::time::sleep(duration).await;
-                    duration *= 2;
-                    state = State::Fetch;
-                }
-                State::Fetch => {
-                    let mut res = HashMap::new();
 
-                    let mut displays = HashMap::new();
+                    let (error, res) = {
+                        let displays = displays.clone();
 
-                    debug!("start enumerate");
+                        let j = tokio::task::spawn_blocking(move || {
+                            let mut res = HashMap::new();
 
-                    for mut display in Display::enumerate() {
-                        let brightness = match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
-                            Ok(v) => v.value(),
-                            Err(e) => {
-                                // on my machine, i get this error when starting the session
-                                // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
-                                // This go away after the third attempt
-                                error!("can't get_vcp_feature: {e}");
-                                state = State::Waiting;
-                                break;
-                            }
-                        };
+                            let mut displays = displays.lock().unwrap();
 
-                        let mon = Monitor {
-                            name: display.info.model_name.clone().unwrap_or_default(),
-                            brightness,
-                        };
-
-                        res.insert(display.info.id.clone(), mon);
-                        displays.insert(display.info.id.clone(), Arc::new(Mutex::new(display)));
-                    }
-
-                    if let State::Waiting = state {
-                        continue;
-                    }
-
-                    debug!("end enumerate");
-
-                    let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
-                    rx.mark_unchanged();
-
-                    output.send(Message::Ready((res, tx))).await.unwrap();
-                    state = State::Ready(displays, rx);
-                }
-                State::Ready(displays, rx) => {
-                    rx.changed().await.unwrap();
-
-                    let last = rx.borrow_and_update().clone();
-                    match last {
-                        EventToSub::Refresh => {
-                            for (id, display) in displays {
-                                let res = display
-                                    .lock()
-                                    .unwrap()
-                                    .handle
-                                    .get_vcp_feature(BRIGHTNESS_CODE);
-
-                                match res {
-                                    Ok(value) => {
-                                        output
-                                            .send(Message::BrightnessWasUpdated(
-                                                id.clone(),
-                                                value.value(),
-                                            ))
-                                            .await
-                                            .unwrap();
+                            debug!("start enumerate");
+                            for (id, display) in displays.iter_mut() {
+                                match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
+                                    Ok(v) => {
+                                        res.insert(id.clone(), v.value());
                                     }
-                                    Err(err) => error!("{:?}", err),
-                                }
+                                    Err(e) => {
+                                        // on my machine, i get this error when starting the session
+                                        // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
+                                        // This go away after the third attempt
+                                        error!("can't get_vcp_feature: {e}");
+                                        continue;
+                                    }
+                                };
+                            }
+                            (res.len() != displays.len(), res)
+                        });
+
+                        j.await.unwrap()
+                    };
+
+                    output
+                        .send(Message::BrightnessWasUpdated(res))
+                        .await
+                        .unwrap();
+
+                    if error {
+                        duration *= 2;
+                        if duration > MAX_WAITING {
+                            state = State::Ready;
+                            duration = DEFAULT_WAITING;
+                        }
+                    } else {
+                        duration = DEFAULT_WAITING;
+                        state = State::Ready;
+                    }
+                }
+                State::Ready => {
+                    if let Some(e) = rx.recv().await {
+                        request_buff.push(e);
+                    }
+
+                    while let Ok(e) = rx.try_recv() {
+                        request_buff.push(e);
+                    }
+
+                    let mut set = HashMap::new();
+                    let mut refresh = false;
+
+                    for request in request_buff.drain(..) {
+                        match request {
+                            EventToSub::Refresh => refresh = true,
+                            EventToSub::Set(id, value) => {
+                                set.insert(id, value);
                             }
                         }
-                        EventToSub::Set(id, value) => {
-                            let display = displays.get_mut(&id).unwrap().clone();
-
-                            let j = tokio::task::spawn_blocking(move || {
-                                if let Err(err) = display
-                                    .lock()
-                                    .unwrap()
-                                    .handle
-                                    .set_vcp_feature(BRIGHTNESS_CODE, value)
-                                {
-                                    error!("{:?}", err);
-                                }
-                            });
-
-                            j.await.unwrap();
-                            tokio::time::sleep(Duration::from_millis(50)).await;
-                        }
                     }
+
+                    if refresh {
+                        let displays = displays.clone();
+
+                        let j = tokio::task::spawn_blocking(move || {
+                            let mut res = HashMap::new();
+
+                            for (id, display) in displays.lock().unwrap().iter_mut() {
+                                match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
+                                    Ok(v) => {
+                                        res.insert(id.clone(), v.value());
+                                    }
+                                    Err(e) => {
+                                        // on my machine, i get this error when starting the session
+                                        // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
+                                        // This go away after the third attempt
+                                        error!("can't get_vcp_feature: {e}");
+                                        continue;
+                                    }
+                                };
+                            }
+                            res
+                        });
+
+                        let res = j.await.unwrap();
+
+                        output
+                            .send(Message::BrightnessWasUpdated(res))
+                            .await
+                            .unwrap();
+                    }
+
+                    let displays = displays.clone();
+
+                    let j = tokio::task::spawn_blocking(move || {
+                        for (id, value) in set.drain() {
+                            let mut displays = displays.lock().unwrap();
+
+                            let display = displays.get_mut(&id).unwrap();
+
+                            debug!("set {} to {}", id, value);
+                            if let Err(err) = display.handle.set_vcp_feature(BRIGHTNESS_CODE, value)
+                            {
+                                error!("{:?}", err);
+                            }
+                        }
+                    });
+                    j.await.unwrap();
+                    sleep(Duration::from_millis(50)).await;
                 }
             }
         }

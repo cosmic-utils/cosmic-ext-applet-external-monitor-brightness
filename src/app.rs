@@ -4,6 +4,7 @@ use cosmic::app::{Core, Task};
 use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
+use cosmic::iced::futures::executor::block_on;
 use cosmic::iced::window::Id;
 use cosmic::iced::{Alignment, Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
@@ -15,7 +16,7 @@ use cosmic::{iced_runtime, Element};
 // use tokio::sync::mpsc::Sender;
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
-use tokio::sync::watch::Sender;
+use tokio::sync::mpsc::Sender;
 
 const ID: &str = "io.github.maciekk64.CosmicExtAppletExternalMonitorBrightness";
 const ICON_HIGH: &str = "cosmic-applet-battery-display-brightness-high-symbolic";
@@ -41,15 +42,13 @@ pub enum Message {
     ThemeModeConfigChanged(ThemeMode),
     SetDarkMode(bool),
     Ready((HashMap<DisplayId, Monitor>, Sender<EventToSub>)),
-    BrightnessWasUpdated(DisplayId, u16),
+    BrightnessWasUpdated(HashMap<DisplayId, u16>),
 }
 
 impl Window {
     pub fn send(&self, e: EventToSub) {
         if let Some(sender) = &self.sender {
-            sender.send(e).unwrap();
-
-            // block_on(sender.send(e)).unwrap();
+            block_on(sender.send(e)).unwrap();
         }
     }
 }
@@ -139,9 +138,11 @@ impl cosmic::Application for Window {
                 self.monitors = mon;
                 self.sender.replace(sender);
             }
-            Message::BrightnessWasUpdated(id, value) => {
-                if let Some(monitor) = self.monitors.get_mut(&id) {
-                    monitor.brightness = value;
+            Message::BrightnessWasUpdated(updates) => {
+                for (id, value) in updates {
+                    if let Some(monitor) = self.monitors.get_mut(&id) {
+                        monitor.brightness = value;
+                    }
                 }
             }
         }
