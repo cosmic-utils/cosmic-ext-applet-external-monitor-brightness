@@ -141,7 +141,7 @@ pub fn sub() -> impl Stream<Item = Message> {
                         }
                     }
 
-                    if false {
+                    if refresh {
                         let displays = displays.clone();
 
                         let j = tokio::task::spawn_blocking(move || {
