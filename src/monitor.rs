@@ -45,6 +45,9 @@ pub fn sub() -> impl Stream<Item = Message> {
             let mut res = HashMap::new();
 
             for display in Display::enumerate() {
+                let info = &display.info;
+                info!("{:?}", info);
+
                 let mon = Monitor {
                     name: display.info.model_name.clone().unwrap_or_default(),
                     brightness: 0,
@@ -62,7 +65,7 @@ pub fn sub() -> impl Stream<Item = Message> {
             rx
         };
 
-        let mut state = State::Fetching;
+        let mut state = State::Ready;
         let mut duration = DEFAULT_WAITING;
 
         let mut request_buff = Vec::new();
@@ -138,7 +141,7 @@ pub fn sub() -> impl Stream<Item = Message> {
                         }
                     }
 
-                    if refresh {
+                    if false {
                         let displays = displays.clone();
 
                         let j = tokio::task::spawn_blocking(move || {
