@@ -44,7 +44,20 @@ pub fn sub() -> impl Stream<Item = Message> {
         let mut rx = {
             let mut res = HashMap::new();
 
-            for display in Display::enumerate() {
+            for mut display in Display::enumerate() {
+                match display.handle.capabilities() {
+                    Ok(cap) => {
+                        if !cap.vcp_features.contains_key(&BRIGHTNESS_CODE) {
+                            info!("BRIGHTNESS_CODE capabilities not found");
+                            continue;
+                        }
+                    }
+                    Err(e) => {
+                        error!("can't get capabilities {e}");
+                        continue;
+                    }
+                }
+
                 let mon = Monitor {
                     name: display.info.model_name.clone().unwrap_or_default(),
                     brightness: 0,
