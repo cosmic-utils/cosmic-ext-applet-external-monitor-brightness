@@ -38,6 +38,7 @@ enum State {
 pub fn sub() -> impl Stream<Item = Message> {
     stream::channel(100, |mut output| async move {
         let mut state = State::Waiting;
+        let mut failed_attempts = 0;
 
         let mut duration = Duration::from_millis(50);
 
@@ -55,16 +56,23 @@ pub fn sub() -> impl Stream<Item = Message> {
 
                     debug!("start enumerate");
 
+                    let mut some_loaded = false;
+                    let mut some_failed = false;
                     for mut display in Display::enumerate() {
                         let brightness = match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
-                            Ok(v) => v.value(),
+                            Ok(v) => {
+                                some_loaded = true;
+                                v.value()
+                            },
+                            // on my machine, i get this error when starting the session
+                            // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
+                            // This go away after the third attempt
+                            // On some monitors this error is permanent
+                            // So we mark the app as read if at least one monitor is loaded above after 5 attempts
                             Err(e) => {
-                                // on my machine, i get this error when starting the session
-                                // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
-                                // This go away after the third attempt
                                 error!("can't get_vcp_feature: {e}");
-                                state = State::Waiting;
-                                break;
+                                some_failed = true;
+                                continue;
                             }
                         };
 
@@ -77,7 +85,14 @@ pub fn sub() -> impl Stream<Item = Message> {
                         displays.insert(display.info.id.clone(), Arc::new(Mutex::new(display)));
                     }
 
-                    if let State::Waiting = state {
+                    if some_failed {
+                        failed_attempts += 1;
+                    } else {
+                        failed_attempts = 0;
+                    }
+
+                    if (some_failed && failed_attempts < 5) || !some_loaded {
+                        state = State::Waiting;
                         continue;
                     }
 
