@@ -67,8 +67,6 @@ pub fn sub() -> impl Stream<Item = Message> {
                             // on my machine, i get this error when starting the session
                             // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
                             // This go away after the third attempt
-                            // On some monitors this error is permanent
-                            // So we mark the app as read if at least one monitor is loaded above after 5 attempts
                             Err(e) => {
                                 error!("can't get_vcp_feature: {e}");
                                 some_failed = true;
@@ -91,6 +89,8 @@ pub fn sub() -> impl Stream<Item = Message> {
                         failed_attempts = 0;
                     }
 
+                    // On some monitors this error is permanent
+                    // So we mark the app as ready if at least one monitor is loaded after 5 attempts
                     if (some_failed && failed_attempts < 5) || !some_loaded {
                         state = State::Waiting;
                         continue;
