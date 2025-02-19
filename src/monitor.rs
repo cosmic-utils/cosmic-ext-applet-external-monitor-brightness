@@ -56,12 +56,10 @@ pub fn sub() -> impl Stream<Item = Message> {
 
                     debug!("start enumerate");
 
-                    let mut some_loaded = false;
                     let mut some_failed = false;
                     for mut display in Display::enumerate() {
                         let brightness = match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
                             Ok(v) => {
-                                some_loaded = true;
                                 v.value()
                             },
                             // on my machine, i get this error when starting the session
@@ -85,13 +83,11 @@ pub fn sub() -> impl Stream<Item = Message> {
 
                     if some_failed {
                         failed_attempts += 1;
-                    } else {
-                        failed_attempts = 0;
                     }
 
                     // On some monitors this error is permanent
                     // So we mark the app as ready if at least one monitor is loaded after 5 attempts
-                    if (some_failed && failed_attempts < 5) || !some_loaded {
+                    if some_failed && failed_attempts < 5 {
                         state = State::Waiting;
                         continue;
                     }
