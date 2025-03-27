@@ -118,18 +118,15 @@ impl cosmic::Application for Window {
                 self.send(EventToSub::Set(id, brightness));
             }
             Message::ChangeGlobalBrightness(brightness) => {
-                let updates: Vec<(String, u16)> = self
-                    .monitors
-                    .iter_mut()
-                    .map(|(id, monitor)| {
-                        monitor.brightness =
-                            (monitor.brightness as i16 + brightness).clamp(0, 100) as u16;
-                        (id.clone(), monitor.brightness)
-                    })
-                    .collect();
-
-                for (id, new_brightness) in updates {
-                    self.send(EventToSub::Set(id, new_brightness));
+                let ids: Vec<String> = self.monitors.keys().cloned().collect();
+                for id in ids {
+                    let b = match self.monitors.get_mut(&id) {
+                        Some(monitor) => &mut monitor.brightness,
+                        None => continue,
+                    };
+                    *b = (*b as i16 + brightness).clamp(0, 100) as u16;
+                    let to_send = *b;
+                    self.send(EventToSub::Set(id, to_send));
                 }
             }
             Message::ToggleMinMaxBrightness(id) => {
