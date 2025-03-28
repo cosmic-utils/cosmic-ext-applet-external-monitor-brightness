@@ -3,7 +3,7 @@ Name=External Monitor Brightness
 Name[fr]=Luminosité de moniteur externe
 
 Comment=Change brightness of external monitors via DDC/CI protocol
-Comment[fr]=Modifier la luminosit� des moniteurs externes via le protocole DDC/CI
+Comment[fr]=Modifier la luminosité des moniteurs externes via le protocole DDC/CI
 
 Type=Application
 Exec=cosmic-ext-applet-external-monitor-brightness
