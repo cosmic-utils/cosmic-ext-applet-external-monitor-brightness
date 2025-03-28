@@ -37,6 +37,7 @@ pub enum Message {
     TogglePopup,
     PopupClosed(Id),
     SetScreenBrightness(String, u16),
+    ChangeGlobalBrightness(i16),
     ToggleMinMaxBrightness(String),
     ThemeModeConfigChanged(ThemeMode),
     SetDarkMode(bool),
@@ -116,6 +117,18 @@ impl cosmic::Application for Window {
                 }
                 self.send(EventToSub::Set(id, brightness));
             }
+            Message::ChangeGlobalBrightness(brightness) => {
+                let ids: Vec<String> = self.monitors.keys().cloned().collect();
+                for id in ids {
+                    let b = match self.monitors.get_mut(&id) {
+                        Some(monitor) => &mut monitor.brightness,
+                        None => continue,
+                    };
+                    *b = (*b as i16 + brightness).clamp(0, 100) as u16;
+                    let to_send = *b;
+                    self.send(EventToSub::Set(id, to_send));
+                }
+            }
             Message::ToggleMinMaxBrightness(id) => {
                 if let Some(monitor) = self.monitors.get_mut(&id) {
                     let new_val = match monitor.brightness {
@@ -149,7 +162,8 @@ impl cosmic::Application for Window {
     }
 
     fn view(&self) -> Element<Self::Message> {
-        self.core
+        let btn = self
+            .core
             .applet
             .icon_button(
                 self.monitors
@@ -158,8 +172,15 @@ impl cosmic::Application for Window {
                     .map(|v| brightness_icon(v.brightness))
                     .unwrap_or(ICON_OFF),
             )
-            .on_press(Message::TogglePopup)
-            .into()
+            .on_press(Message::TogglePopup);
+        let btn = mouse_area(btn).on_scroll(|delta| {
+            let change = match delta {
+                cosmic::iced::mouse::ScrollDelta::Lines { x, y } => (x + y).signum() * 5.0,
+                cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y.signum() * 5.0,
+            };
+            Message::ChangeGlobalBrightness(change as i16)
+        });
+        btn.into()
     }
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
