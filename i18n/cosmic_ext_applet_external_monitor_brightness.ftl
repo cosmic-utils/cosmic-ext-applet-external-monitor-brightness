@@ -1,0 +1,1 @@
+dark-mode = Mod întunecat
