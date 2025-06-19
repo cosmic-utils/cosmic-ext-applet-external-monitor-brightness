@@ -1,0 +1,41 @@
+{
+  "id": "io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "24.08",
+  "base": "com.system76.Cosmic.BaseApp",
+  "base-version": "stable",
+  "sdk": "org.freedesktop.Sdk",
+  "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
+  "command": "cosmic-ext-applet-external-monitor-brightness",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--filesystem=xdg-config/cosmic:ro",
+    "--talk-name=com.system76.CosmicSettingsDaemon"
+  ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin",
+    "env": {
+      "CARGO_HOME": "/run/build/cosmic-ext-applet-external-monitor-brightness/cargo"
+    }
+  },
+  "modules": [
+    {
+      "name": "cosmic-ext-applet-external-monitor-brightness",
+      "buildsystem": "simple",
+      "build-commands": [
+        "just build-release --verbose --offline",
+        "just prefix=/app install"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness.git",
+          "commit": "b8d9cfda652613abed23b5472ca849b96ddfdbdb"
+        },
+        "cargo-sources.json"
+      ]
+    }
+  ]
+}
