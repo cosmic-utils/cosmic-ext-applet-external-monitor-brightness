@@ -10,9 +10,11 @@ bin-src := cargo-target-dir / if debug == '1' { 'debug' / name } else { 'release
 
 
 base-dir := absolute_path(clean(rootdir / prefix))
+share-dst := base-dir / 'share'
 
 bin-dst := base-dir / 'bin' / name
-desktop-dst := base-dir / 'share' / 'applications' / appid + '.desktop'
+desktop-dst := share-dst / 'applications' / appid + '.desktop'
+metainfo-dst := share-dst / 'metainfo' / appid + '.metainfo.xml'
 
 default: build-release
 
@@ -26,9 +28,12 @@ build-release *args:
 install:
     install -Dm0755 {{bin-src}} {{bin-dst}}
     install -Dm0644 res/desktop_entry.desktop {{desktop-dst}}
+    install -Dm0644 res/metainfo.xml {{metainfo-dst}}
 
 uninstall:
     rm {{bin-dst}}
+    rm {{desktop-dst}}
+    rm {{metainfo-dst}}
 
 clean:
     cargo clean

@@ -30,9 +30,8 @@
       ],
       "sources": [
         {
-          "type": "git",
-          "url": "https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness.git",
-          "commit": "b8d9cfda652613abed23b5472ca849b96ddfdbdb"
+          "type": "dir",
+          "path": "./"
         },
         "cargo-sources.json"
       ]
