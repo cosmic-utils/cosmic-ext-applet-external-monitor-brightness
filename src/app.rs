@@ -145,7 +145,10 @@ impl cosmic::Application for Window {
             Message::SetDarkMode(dark) => {
                 self.theme_mode_config.is_dark = dark;
                 if let Ok(helper) = ThemeMode::config() {
-                    _ = self.theme_mode_config.write_entry(&helper);
+
+                    if let Err(e) = self.theme_mode_config.write_entry(&helper) {
+                        error!("can't write theme mode {e}");
+                    }
                 }
             }
             Message::Ready((mon, sender)) => {

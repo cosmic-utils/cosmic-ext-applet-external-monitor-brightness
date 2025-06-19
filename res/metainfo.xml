@@ -27,7 +27,7 @@
     <url type="contribute">
         https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness</url>
     <url type="translate">
-        https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness/master/i18n</url>
+        https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness/tree/master/i18n</url>
 
     <content_rating type="oars-1.1" />
 

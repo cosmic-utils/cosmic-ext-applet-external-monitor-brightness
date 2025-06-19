@@ -28,12 +28,12 @@ build-release *args:
 install:
     install -Dm0755 {{bin-src}} {{bin-dst}}
     install -Dm0644 res/desktop_entry.desktop {{desktop-dst}}
-    install -Dm0644 res/metainfo.xml {{metainfo-dst}}
+    # install -Dm0644 res/metainfo.xml {{metainfo-dst}}
 
 uninstall:
     rm {{bin-dst}}
     rm {{desktop-dst}}
-    rm {{metainfo-dst}}
+    # rm {{metainfo-dst}}
 
 clean:
     cargo clean
@@ -59,6 +59,8 @@ prettier:
 
 
 
+metainfo-check:
+	appstreamcli validate --pedantic --explain --strict res/metainfo.xml
 
 branch := "main"
 sdk-version := "24.08"
@@ -93,7 +95,6 @@ build-and-install: uninstallf
     flatpak-builder \
         --force-clean \
         --verbose \
-        --ccache \
         --user --install \
         --install-deps-from=flathub \
         --repo=repo \
@@ -101,4 +102,4 @@ build-and-install: uninstallf
         {{appid}}.json
 
 run:
-    flatpak run {{appid}}
+    RUST_LOG="warn,cosmic_ext_applet_external_monitor_brightness=debug" flatpak run {{appid}}
