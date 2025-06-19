@@ -17,7 +17,7 @@ use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
 use tokio::sync::watch::Sender;
 
-const ID: &str = "io.github.maciekk64.CosmicExtAppletExternalMonitorBrightness";
+const ID: &str = "io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness";
 const ICON_HIGH: &str = "cosmic-applet-battery-display-brightness-high-symbolic";
 const ICON_MEDIUM: &str = "cosmic-applet-battery-display-brightness-medium-symbolic";
 const ICON_LOW: &str = "cosmic-applet-battery-display-brightness-low-symbolic";

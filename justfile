@@ -2,19 +2,17 @@ rootdir := ''
 prefix := '/usr'
 debug := '0'
 
-export NAME := 'cosmic-ext-applet-external-monitor-brightness'
-export APPID := 'io.github.maciekk64.CosmicExtAppletExternalMonitorBrightness'
-
-
+name := 'cosmic-ext-applet-external-monitor-brightness'
+appid := 'io.github.cosmic_utils.' + name
 
 cargo-target-dir := env('CARGO_TARGET_DIR', 'target')
-bin-src := cargo-target-dir / if debug == '1' { 'debug' / NAME } else { 'release' / NAME }
+bin-src := cargo-target-dir / if debug == '1' { 'debug' / name } else { 'release' / name }
 
 
 base-dir := absolute_path(clean(rootdir / prefix))
 
-bin-dst := base-dir / 'bin' / NAME
-desktop-dst := base-dir / 'share' / 'applications' / APPID + '.desktop'
+bin-dst := base-dir / 'bin' / name
+desktop-dst := base-dir / 'share' / 'applications' / appid + '.desktop'
 
 default: build-release
 
