@@ -100,6 +100,9 @@ impl Window {
     }
 
     fn settings_view(&self) -> Vec<Element<Message>> {
+        if !self.show_settings {
+            return Vec::with_capacity(0);
+        }
         self.monitors
             .iter()
             .map(|(id, monitor)| {
@@ -132,11 +135,12 @@ impl Window {
     }
 
     fn settings_collapsible_view(&self) -> Vec<Element<Message>> {
-        let mut vec = Vec::with_capacity(3);
+        let mut vec = Vec::with_capacity(2);
         // vec.push(padded_control(divider::horizontal::default()).into());
-        if !self.monitors.is_empty() {
-            vec.push(padded_control(divider::horizontal::default()).into());
+        if self.monitors.is_empty() {
+            return vec;
         }
+        vec.push(padded_control(divider::horizontal::default()).into());
 
         let dropdown_icon = if self.show_settings {
             "go-up-symbolic"
@@ -165,7 +169,7 @@ impl Window {
     }
 
     fn dark_mode_view(&self) -> Vec<Element<Message>> {
-        let mut vec = Vec::with_capacity(3);
+        let mut vec = Vec::with_capacity(2);
         if !self.monitors.is_empty() {
             vec.push(padded_control(divider::horizontal::default()).into());
         }
@@ -376,10 +380,11 @@ impl cosmic::Application for Window {
             .padding([8, 0])
             .extend(self.sliders_view())
             .extend(self.dark_mode_view())
-            .extend(self.settings_collapsible_view());
-        if self.show_settings {
-            col = col.extend(self.settings_view())
-        }
+            .extend(self.settings_collapsible_view())
+            .extend(self.settings_view());
+        // if self.show_settings {
+        //     col = col.extend(self.settings_view())
+        // }
         self.core.applet.popup_container(col).into()
     }
 
