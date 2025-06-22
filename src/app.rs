@@ -115,12 +115,12 @@ impl Window {
                             .tooltip(&monitor.name),
                         )
                         .push(slider(
-                            50..=200,
-                            (monitor.gamma_curve * 100.0) as u32,
-                            move |curve| Message::SetScreenCurve(id.clone(), curve as f32 / 100.0),
+                            5..=20,
+                            (monitor.gamma_curve * 10.0) as u32,
+                            move |curve| Message::SetScreenCurve(id.clone(), curve as f32 / 10.0),
                         ))
                         .push(
-                            text(format!("{:.2}", monitor.gamma_curve))
+                            text(format!("{:.1}", monitor.gamma_curve))
                                 .size(16)
                                 .width(Length::Fixed(40.0)),
                         )
