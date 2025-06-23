@@ -9,14 +9,12 @@ use cosmic::applet::{menu_button, padded_control};
 use cosmic::cosmic_config::Config as CosmicConfig;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{THEME_MODE_ID, ThemeMode};
-use cosmic::iced::futures::{SinkExt, Stream};
 use cosmic::iced::window::Id;
-use cosmic::iced::{Alignment, Length, Limits, Subscription, stream};
+use cosmic::iced::{Alignment, Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::{
-    Button, Row, button, column, divider, horizontal_space, icon, mouse_area, row, slider, text,
-    toggler,
+    Row, button, column, divider, horizontal_space, icon, mouse_area, row, slider, text, toggler,
 };
 use cosmic::{Element, iced_runtime};
 use tokio::sync::watch::Sender;
