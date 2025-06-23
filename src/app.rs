@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::time;
 
 use crate::config::{self, Config};
 use crate::monitor::{DisplayId, EventToSub, Monitor};
@@ -35,7 +34,7 @@ pub struct Window {
     show_settings: bool,
     config: Config,
     config_handler: Option<CosmicConfig>,
-    last_config_dirty: Option<time::Instant>,
+    is_config_dirty: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -218,35 +217,35 @@ impl Window {
         }
     }
 
-    fn refresh(&mut self) {
-        self.send(EventToSub::Refresh { all: true });
+    fn reload_config(&mut self) {
         if let Some(config_handler) = &self.config_handler {
             if let Ok(c) = config::Config::get_entry(config_handler) {
                 self.config = c;
                 self.apply_gamma_curves();
             }
         }
-        if let Some(last_dirty) = self.last_config_dirty {
-            if time::Instant::now().duration_since(last_dirty) > time::Duration::from_secs(5) {
-                for (id, mon) in self.monitors.iter() {
-                    if let Some((_id, gamma)) = self
-                        .config
-                        .gamma_curves
-                        .iter_mut()
-                        .find(|(mon_id, _gamma)| mon_id == id)
-                    {
-                        *gamma = mon.gamma_curve
-                    } else {
-                        self.config.gamma_curves.push((id.clone(), mon.gamma_curve))
-                    }
+    }
+
+    fn save_config(&mut self) {
+        if self.is_config_dirty {
+            for (id, mon) in self.monitors.iter() {
+                if let Some((_id, gamma)) = self
+                    .config
+                    .gamma_curves
+                    .iter_mut()
+                    .find(|(mon_id, _gamma)| mon_id == id)
+                {
+                    *gamma = mon.gamma_curve
+                } else {
+                    self.config.gamma_curves.push((id.clone(), mon.gamma_curve))
                 }
-                if let Some(config_handler) = &self.config_handler {
-                    self.config
-                        .write_entry(config_handler)
-                        .unwrap_or_else(|e| error!("{e:?}"));
-                }
-                self.last_config_dirty = None;
             }
+            if let Some(config_handler) = &self.config_handler {
+                self.config
+                    .write_entry(config_handler)
+                    .unwrap_or_else(|e| error!("{e:?}"));
+            }
+            self.is_config_dirty = false;
         }
     }
 }
@@ -285,7 +284,9 @@ impl cosmic::Application for Window {
 
         match message {
             Message::Refresh => {
-                self.refresh();
+                self.send(EventToSub::Refresh { all: true });
+                self.save_config();
+                self.reload_config();
             }
             Message::UpdateMonitors(mon) => {
                 self.monitors = mon;
@@ -314,6 +315,7 @@ impl cosmic::Application for Window {
                 };
             }
             Message::PopupClosed(id) => {
+                self.save_config();
                 if self.popup.as_ref() == Some(&id) {
                     self.popup = None;
                     self.show_settings = false;
@@ -374,7 +376,7 @@ impl cosmic::Application for Window {
                 if let Some(monitor) = self.monitors.get_mut(&id) {
                     monitor.gamma_curve = value;
                     let b = monitor.get_curved_integer_brightness();
-                    self.last_config_dirty = Some(time::Instant::now());
+                    self.is_config_dirty = true;
                     self.send(EventToSub::Set(id, b));
                 }
             }
