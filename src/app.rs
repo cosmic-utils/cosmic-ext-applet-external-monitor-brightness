@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time;
 
-use crate::config::Config;
+use crate::config::{self, Config};
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
 use cosmic::app::{Core, Task};
@@ -15,7 +15,8 @@ use cosmic::iced::{Alignment, Length, Limits, Subscription, stream};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::{
-    Row, button, column, divider, horizontal_space, icon, mouse_area, row, slider, text, toggler,
+    Button, Row, button, column, divider, horizontal_space, icon, mouse_area, row, slider, text,
+    toggler,
 };
 use cosmic::{Element, iced_runtime};
 use tokio::sync::watch::Sender;
@@ -52,6 +53,7 @@ pub enum Message {
     ShowSettings(bool),
     Ready((HashMap<DisplayId, Monitor>, Sender<EventToSub>)),
     BrightnessWasUpdated(DisplayId, u16),
+    UpdateMonitors(HashMap<DisplayId, Monitor>),
     Refresh,
 }
 
@@ -168,6 +170,18 @@ impl Window {
         vec
     }
 
+    fn refresh_view(&self) -> Vec<Element<Message>> {
+        let mut vec = Vec::with_capacity(2);
+
+        let text = text::body(fl!("refresh"))
+            .width(Length::Fill)
+            .height(Length::Fixed(24.0))
+            .align_y(Alignment::Center);
+        vec.push(menu_button(text).on_press(Message::Refresh).into());
+
+        vec
+    }
+
     fn dark_mode_view(&self) -> Vec<Element<Message>> {
         let mut vec = Vec::with_capacity(2);
         if !self.monitors.is_empty() {
@@ -191,6 +205,51 @@ impl Window {
         );
 
         vec
+    }
+
+    fn apply_gamma_curves(&mut self) {
+        for (monitor_id, monitor) in self.monitors.iter_mut() {
+            if let Some((_id, gamma)) = self
+                .config
+                .gamma_curves
+                .iter()
+                .find(|(id, _)| id == monitor_id)
+            {
+                monitor.gamma_curve = *gamma;
+            }
+        }
+    }
+
+    fn refresh(&mut self) {
+        self.send(EventToSub::Refresh { all: true });
+        if let Some(config_handler) = &self.config_handler {
+            if let Ok(c) = config::Config::get_entry(config_handler) {
+                self.config = c;
+                self.apply_gamma_curves();
+            }
+        }
+        if let Some(last_dirty) = self.last_config_dirty {
+            if time::Instant::now().duration_since(last_dirty) > time::Duration::from_secs(5) {
+                for (id, mon) in self.monitors.iter() {
+                    if let Some((_id, gamma)) = self
+                        .config
+                        .gamma_curves
+                        .iter_mut()
+                        .find(|(mon_id, _gamma)| mon_id == id)
+                    {
+                        *gamma = mon.gamma_curve
+                    } else {
+                        self.config.gamma_curves.push((id.clone(), mon.gamma_curve))
+                    }
+                }
+                if let Some(config_handler) = &self.config_handler {
+                    self.config
+                        .write_entry(config_handler)
+                        .unwrap_or_else(|e| error!("{e:?}"));
+                }
+                self.last_config_dirty = None;
+            }
+        }
     }
 }
 
@@ -228,37 +287,19 @@ impl cosmic::Application for Window {
 
         match message {
             Message::Refresh => {
-                if let Some(last_dirty) = self.last_config_dirty {
-                    if time::Instant::now().duration_since(last_dirty)
-                        > time::Duration::from_secs(5)
-                    {
-                        for (id, mon) in self.monitors.iter() {
-                            if let Some((_id, gamma)) = self
-                                .config
-                                .gamma_curves
-                                .iter_mut()
-                                .find(|(mon_id, _gamma)| mon_id == id)
-                            {
-                                *gamma = mon.gamma_curve
-                            } else {
-                                self.config.gamma_curves.push((id.clone(), mon.gamma_curve))
-                            }
-                        }
-                        if let Some(config_handler) = &self.config_handler {
-                            self.config
-                                .write_entry(config_handler)
-                                .unwrap_or_else(|e| error!("{e:?}"));
-                        }
-                        self.last_config_dirty = None;
-                    }
-                }
+                self.refresh();
+            }
+            Message::UpdateMonitors(mon) => {
+                self.monitors = mon;
+                self.apply_gamma_curves();
             }
             Message::TogglePopup => {
                 self.show_settings = false;
                 return if let Some(p) = self.popup.take() {
                     destroy_popup(p)
                 } else {
-                    self.send(EventToSub::Refresh);
+                    self.send(EventToSub::Refresh { all: false });
+                    // self.refresh();
 
                     let new_id = Id::unique();
                     self.popup.replace(new_id);
@@ -323,16 +364,7 @@ impl cosmic::Application for Window {
             }
             Message::Ready((mon, sender)) => {
                 self.monitors = mon;
-                for (monitor_id, monitor) in self.monitors.iter_mut() {
-                    if let Some((_id, gamma)) = self
-                        .config
-                        .gamma_curves
-                        .iter()
-                        .find(|(id, _)| id == monitor_id)
-                    {
-                        monitor.gamma_curve = *gamma;
-                    }
-                }
+                self.apply_gamma_curves();
                 self.sender.replace(sender);
             }
             Message::BrightnessWasUpdated(id, value) => {
@@ -376,15 +408,13 @@ impl cosmic::Application for Window {
     }
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
-        let mut col = column()
+        let col = column()
             .padding([8, 0])
             .extend(self.sliders_view())
+            .extend(self.refresh_view())
             .extend(self.dark_mode_view())
             .extend(self.settings_collapsible_view())
             .extend(self.settings_view());
-        // if self.show_settings {
-        //     col = col.extend(self.settings_view())
-        // }
         self.core.applet.popup_container(col).into()
     }
 
@@ -398,18 +428,9 @@ impl cosmic::Application for Window {
                 .watch_config(THEME_MODE_ID)
                 .map(|u| Message::ThemeModeConfigChanged(u.config)),
             Subscription::run(monitor::sub),
-            Subscription::run(refresh_sub),
+            // Subscription::run(refresh_sub),
         ])
     }
-}
-
-fn refresh_sub() -> impl Stream<Item = Message> {
-    stream::channel(10, |mut output| async move {
-        loop {
-            tokio::time::sleep(time::Duration::from_secs(10)).await;
-            output.send(Message::Refresh).await.unwrap();
-        }
-    })
 }
 
 fn brightness_icon(brightness: f32) -> &'static str {
