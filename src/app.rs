@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+use crate::icon::{icon_high, icon_low, icon_medium, icon_off};
+use anyhow::anyhow;
 use cosmic::app::{Core, Task};
 use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
-use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
+use cosmic::cosmic_theme::{THEME_MODE_ID, ThemeMode};
 use cosmic::iced::window::Id;
 use cosmic::iced::{Alignment, Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
@@ -11,17 +13,13 @@ use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::{
     button, column, divider, horizontal_space, icon, mouse_area, row, slider, text, toggler,
 };
-use cosmic::{iced_runtime, Element};
+use cosmic::{Element, iced_runtime};
 // use tokio::sync::mpsc::Sender;
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
 use tokio::sync::watch::Sender;
 
 const ID: &str = "io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness";
-const ICON_HIGH: &str = "cosmic-applet-battery-display-brightness-high-symbolic";
-const ICON_MEDIUM: &str = "cosmic-applet-battery-display-brightness-medium-symbolic";
-const ICON_LOW: &str = "cosmic-applet-battery-display-brightness-low-symbolic";
-const ICON_OFF: &str = "cosmic-applet-battery-display-brightness-off-symbolic";
 
 #[derive(Default)]
 pub struct Window {
@@ -143,9 +141,24 @@ impl cosmic::Application for Window {
                 self.theme_mode_config = config;
             }
             Message::SetDarkMode(dark) => {
+                fn set_theme_mode(mode: &ThemeMode) -> anyhow::Result<()> {
+                    let home_dir = dirs::home_dir().ok_or(anyhow!("no home dir"))?;
+
+                    let helper = cosmic::cosmic_config::Config::with_custom_path(
+                        THEME_MODE_ID,
+                        ThemeMode::VERSION,
+                        home_dir.join(".config"),
+                    )?;
+
+                    mode.write_entry(&helper)?;
+
+                    Ok(())
+                }
+
                 self.theme_mode_config.is_dark = dark;
-                if let Ok(helper) = ThemeMode::config() {
-                    _ = self.theme_mode_config.write_entry(&helper);
+
+                if let Err(e) = set_theme_mode(&self.theme_mode_config) {
+                    error!("can't write theme mode {e}");
                 }
             }
             Message::Ready((mon, sender)) => {
@@ -165,12 +178,12 @@ impl cosmic::Application for Window {
         let btn = self
             .core
             .applet
-            .icon_button(
+            .icon_button_from_handle(
                 self.monitors
                     .values()
                     .next()
                     .map(|v| brightness_icon(v.brightness))
-                    .unwrap_or(ICON_OFF),
+                    .unwrap_or(icon_off()),
             )
             .on_press(Message::TogglePopup);
         let btn = mouse_area(btn).on_scroll(|delta| {
@@ -194,13 +207,10 @@ impl cosmic::Application for Window {
                             row()
                                 .align_y(Alignment::Center)
                                 .push(
-                                    button::icon(
-                                        icon::from_name(brightness_icon(monitor.brightness))
-                                            .size(24)
-                                            .symbolic(true),
-                                    )
-                                    .tooltip(&monitor.name)
-                                    .on_press(Message::ToggleMinMaxBrightness(id.clone())),
+                                    button::icon(brightness_icon(monitor.brightness))
+                                        .icon_size(24)
+                                        .tooltip(&monitor.name)
+                                        .on_press(Message::ToggleMinMaxBrightness(id.clone())),
                                 )
                                 .push(slider(0..=100, monitor.brightness, move |brightness| {
                                     Message::SetScreenBrightness(id.clone(), brightness)
@@ -250,14 +260,14 @@ impl cosmic::Application for Window {
     }
 }
 
-fn brightness_icon(brightness: u16) -> &'static str {
+fn brightness_icon(brightness: u16) -> icon::Handle {
     if brightness > 66 {
-        ICON_HIGH
+        icon_high()
     } else if brightness > 33 {
-        ICON_MEDIUM
+        icon_medium()
     } else if brightness > 0 {
-        ICON_LOW
+        icon_low()
     } else {
-        ICON_OFF
+        icon_off()
     }
 }

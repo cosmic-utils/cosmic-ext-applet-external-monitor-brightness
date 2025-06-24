@@ -10,9 +10,12 @@ bin-src := cargo-target-dir / if debug == '1' { 'debug' / name } else { 'release
 
 
 base-dir := absolute_path(clean(rootdir / prefix))
+share-dst := base-dir / 'share'
 
 bin-dst := base-dir / 'bin' / name
-desktop-dst := base-dir / 'share' / 'applications' / appid + '.desktop'
+desktop-dst := share-dst / 'applications' / appid + '.desktop'
+metainfo-dst := share-dst / 'metainfo' / appid + '.metainfo.xml'
+icon-dst := share-dst / 'icons/hicolor/scalable/apps' / appid + '-symbolic.svg'
 
 default: build-release
 
@@ -26,9 +29,14 @@ build-release *args:
 install:
     install -Dm0755 {{bin-src}} {{bin-dst}}
     install -Dm0644 res/desktop_entry.desktop {{desktop-dst}}
+    install -Dm0644 res/icons/display-symbolic.svg {{icon-dst}}
+    install -Dm0644 res/metainfo.xml {{metainfo-dst}}
 
 uninstall:
     rm {{bin-dst}}
+    rm {{desktop-dst}}
+    rm {{icon-dst}}
+    rm {{metainfo-dst}}
 
 clean:
     cargo clean
@@ -51,3 +59,45 @@ prettier:
 	# install on Debian: sudo snap install node --classic
 	# npx is the command to run npm package, node is the runtime
 	npx prettier -w .
+
+
+
+metainfo-check:
+	appstreamcli validate --pedantic --explain --strict res/metainfo.xml
+
+
+sdk-version := "24.08"
+
+setup:
+    rm -rf flatpak-builder-tools
+    git clone https://github.com/flatpak/flatpak-builder-tools
+    pip install aiohttp toml
+
+sources-gen:
+    python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py ./Cargo.lock -o cargo-sources.json
+
+install-sdk:
+    flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+    flatpak install --noninteractive --user flathub \
+        org.freedesktop.Platform//{{sdk-version}} \
+        org.freedesktop.Sdk//{{sdk-version}} \
+        org.freedesktop.Sdk.Extension.rust-stable//{{sdk-version}} \
+        org.freedesktop.Sdk.Extension.llvm18//{{sdk-version}}
+
+uninstallf:
+    flatpak uninstall {{appid}} -y || true
+
+# deps: flatpak-builder git-lfs
+build-and-installf: uninstallf
+    flatpak-builder \
+        --force-clean \
+        --verbose \
+        --user --install \
+        --install-deps-from=flathub \
+        --repo=repo \
+        flatpak-out \
+        {{appid}}.json
+
+runf:
+    RUST_LOG="warn,cosmic_ext_applet_external_monitor_brightness=debug" flatpak run {{appid}}
+
