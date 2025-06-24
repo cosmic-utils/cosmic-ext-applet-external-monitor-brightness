@@ -12,7 +12,7 @@ i18n-embed = { version = "0.15", features = [
     "desktop-requester",
 ] }
 i18n-embed-fl = "0.9"
-rust-embed = "8"
+rust-embed = { version = "8", features = ["debug-embed"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-journald = "0.3"

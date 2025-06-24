@@ -103,3 +103,5 @@ build-and-install: uninstallf
 
 run:
     RUST_LOG="warn,cosmic_ext_applet_external_monitor_brightness=debug" flatpak run {{appid}}
+
+build-and-run: build-and-install run
