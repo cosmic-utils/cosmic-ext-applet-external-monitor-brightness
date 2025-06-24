@@ -22,7 +22,7 @@ anyhow = "1"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"
-rev = "a85b3693994ef2b8275eca6a9eccc86a2d7e9f86"
+# rev = "a85b3693994ef2b8275eca6a9eccc86a2d7e9f86"
 default-features = false
 features = ["applet", "tokio", "wayland", "dbus-config"]
 
