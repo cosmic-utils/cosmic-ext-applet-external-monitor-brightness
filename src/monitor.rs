@@ -59,9 +59,7 @@ pub fn sub() -> impl Stream<Item = Message> {
                     let mut some_failed = false;
                     for mut display in Display::enumerate() {
                         let brightness = match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
-                            Ok(v) => {
-                                v.value()
-                            },
+                            Ok(v) => v.value(),
                             // on my machine, i get this error when starting the session
                             // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
                             // This go away after the third attempt
