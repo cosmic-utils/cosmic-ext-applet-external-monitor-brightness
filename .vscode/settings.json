@@ -1,5 +1,15 @@
 {
     "rust-analyzer.linkedProjects": [
         "./Cargo.toml"
-    ]
+    ],
+    "rust-analyzer.initializeStopped": true,
+    "rust-analyzer.files.exclude": [
+        ".flatpak-builder",
+        "flatpak-out"
+    ],
+    "files.watcherExclude": {
+        ".flatpak-builder": true,
+        "flatpak-out": true,
+        "repo": true
+    }
 }

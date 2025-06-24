@@ -17,6 +17,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-journald = "0.3"
 tokio = { version = "1", features = ["full"] }
+dirs = "6"
+anyhow = "1"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"

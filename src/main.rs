@@ -5,11 +5,12 @@ use crate::localize::localize;
 extern crate tracing;
 
 mod app;
+mod icon;
 mod localize;
 mod monitor;
 
 fn setup_logs() {
-    use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
     let fmt_layer = fmt::layer().with_target(false);
     let filter_layer = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new(format!(

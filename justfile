@@ -15,6 +15,7 @@ share-dst := base-dir / 'share'
 bin-dst := base-dir / 'bin' / name
 desktop-dst := share-dst / 'applications' / appid + '.desktop'
 metainfo-dst := share-dst / 'metainfo' / appid + '.metainfo.xml'
+icon-dst := share-dst / 'icons/hicolor/scalable/apps' / appid + '-symbolic.svg'
 
 default: build-release
 
@@ -28,11 +29,13 @@ build-release *args:
 install:
     install -Dm0755 {{bin-src}} {{bin-dst}}
     install -Dm0644 res/desktop_entry.desktop {{desktop-dst}}
+    install -Dm0644 res/icons/display-symbolic.svg {{icon-dst}}
     # install -Dm0644 res/metainfo.xml {{metainfo-dst}}
 
 uninstall:
     rm {{bin-dst}}
     rm {{desktop-dst}}
+    rm {{icon-dst}}
     # rm {{metainfo-dst}}
 
 clean:
@@ -74,7 +77,7 @@ setup:
     pip install aiohttp toml
 
 sources-gen:
-    python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py AndroidMic/RustApp/Cargo.lock -o cargo-sources.json
+    python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py ./Cargo.lock -o cargo-sources.json
 
 manifest-gen:
     ./gen_manifest.nu

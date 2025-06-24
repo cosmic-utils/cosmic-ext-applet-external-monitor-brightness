@@ -18,7 +18,7 @@
     </developer>
 
 
-    <icon type="stock">display-symbolic</icon>
+    <icon type="stock">io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness-symbolic</icon>
 
     <url type="homepage">
         https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness</url>
