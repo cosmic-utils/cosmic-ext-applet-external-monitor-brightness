@@ -30,13 +30,13 @@ install:
     install -Dm0755 {{bin-src}} {{bin-dst}}
     install -Dm0644 res/desktop_entry.desktop {{desktop-dst}}
     install -Dm0644 res/icons/display-symbolic.svg {{icon-dst}}
-    # install -Dm0644 res/metainfo.xml {{metainfo-dst}}
+    install -Dm0644 res/metainfo.xml {{metainfo-dst}}
 
 uninstall:
     rm {{bin-dst}}
     rm {{desktop-dst}}
     rm {{icon-dst}}
-    # rm {{metainfo-dst}}
+    rm {{metainfo-dst}}
 
 clean:
     cargo clean
@@ -65,22 +65,16 @@ prettier:
 metainfo-check:
 	appstreamcli validate --pedantic --explain --strict res/metainfo.xml
 
-branch := "main"
+
 sdk-version := "24.08"
 
-
 setup:
-    rm -rf android-mic
     rm -rf flatpak-builder-tools
-    git clone https://github.com/teamclouday/AndroidMic.git --branch {{branch}}
     git clone https://github.com/flatpak/flatpak-builder-tools
     pip install aiohttp toml
 
 sources-gen:
     python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py ./Cargo.lock -o cargo-sources.json
-
-manifest-gen:
-    ./gen_manifest.nu
 
 install-sdk:
     flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
@@ -94,7 +88,7 @@ uninstallf:
     flatpak uninstall {{appid}} -y || true
 
 # deps: flatpak-builder git-lfs
-build-and-install: uninstallf
+build-and-installf: uninstallf
     flatpak-builder \
         --force-clean \
         --verbose \
@@ -104,7 +98,6 @@ build-and-install: uninstallf
         flatpak-out \
         {{appid}}.json
 
-run:
+runf:
     RUST_LOG="warn,cosmic_ext_applet_external_monitor_brightness=debug" flatpak run {{appid}}
 
-build-and-run: build-and-install run
