@@ -1,9 +1,11 @@
 [Desktop Entry]
 Name=External Monitor Brightness
 Name[fr]=Luminosité de moniteur externe
+Name[hu]=Külső Monitor Fényerőszabályzó
 
 Comment=Change brightness of external monitors via DDC/CI protocol
 Comment[fr]=Modifier la luminosité des moniteurs externes via le protocole DDC/CI
+Comment[hu]=Külső monitorok fényerejének szabályozása a DDC/CI protokollon keresztül
 
 Type=Application
 Exec=cosmic-ext-applet-external-monitor-brightness
