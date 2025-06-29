@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::time;
 
-use crate::config::Config;
+use crate::config::{self, Config};
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
 use cosmic::app::{Core, Task};
-use cosmic::applet::{menu_button, padded_control};
+use cosmic::applet::padded_control;
 use cosmic::cosmic_config::Config as CosmicConfig;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{THEME_MODE_ID, ThemeMode};
@@ -15,9 +15,11 @@ use cosmic::iced::{Alignment, Length, Limits, Subscription, stream};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::{
-    Row, button, column, divider, horizontal_space, icon, mouse_area, row, slider, text, toggler,
+    button, column, container, divider, horizontal_space, icon, mouse_area, row, slider, text,
+    toggler, tooltip,
 };
 use cosmic::{Element, iced_runtime};
+use std::sync::mpsc::Receiver;
 use tokio::sync::watch::Sender;
 
 pub(crate) const ID: &str = "io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness";
@@ -36,7 +38,7 @@ pub struct Window {
     show_settings: bool,
     config: Config,
     config_handler: Option<CosmicConfig>,
-    last_config_dirty: Option<time::Instant>,
+    config_watch_rx: Option<Receiver<Config>>,
 }
 
 #[derive(Clone, Debug)]
@@ -44,12 +46,12 @@ pub enum Message {
     TogglePopup,
     PopupClosed(Id),
     SetScreenBrightness(String, f32),
-    SetScreenCurve(String, f32),
+    SetMonGammaMap(String, f32),
     ChangeGlobalBrightness(f32),
     ToggleMinMaxBrightness(String),
     ThemeModeConfigChanged(ThemeMode),
     SetDarkMode(bool),
-    ShowSettings(bool),
+    ToggleMonSettings(String),
     Ready((HashMap<DisplayId, Monitor>, Sender<EventToSub>)),
     BrightnessWasUpdated(DisplayId, u16),
     Refresh,
@@ -67,101 +69,73 @@ impl Window {
     fn sliders_view(&self) -> Vec<Element<Message>> {
         self.monitors
             .iter()
-            .map(|(id, monitor)| {
-                padded_control(
+            .flat_map(|(id, monitor)| {
+                let Some(gamma_map) = self.config.get_gamma_map(id) else {
+                    return None;
+                };
+                let dropdown_icon = if monitor.settings_expanded {
+                    "go-up-symbolic"
+                } else {
+                    "go-down-symbolic"
+                };
+                let dropdown_icon = icon::from_name(dropdown_icon).size(16).symbolic(true);
+                let dropdown = container(dropdown_icon).center(Length::Fixed(24.0));
+                let dropdown = button::custom(dropdown)
+                    .on_press(Message::ToggleMonSettings(id.clone()))
+                    .class(cosmic::style::Button::NavToggle)
+                    .width(Length::Shrink);
+
+                let mut column = column();
+                column = column.push(padded_control(
                     row()
                         .align_y(Alignment::Center)
-                        .push(
+                        .push(tooltip(
                             button::icon(
                                 icon::from_name(brightness_icon(monitor.brightness))
                                     .size(24)
                                     .symbolic(true),
                             )
-                            .tooltip(&monitor.name)
                             .on_press(Message::ToggleMinMaxBrightness(id.clone())),
-                        )
+                            text(&monitor.name),
+                            tooltip::Position::Right,
+                        ))
                         .push(slider(
                             0..=100,
-                            monitor.get_integer_brightness(),
+                            (monitor.brightness * 100.0) as u16,
                             move |brightness| {
                                 Message::SetScreenBrightness(id.clone(), brightness as f32 / 100.0)
                             },
                         ))
                         .push(
-                            text(format!("{:.0}%", monitor.get_curved_integer_brightness()))
+                            text(format!("{:.0}%", monitor.get_mapped_brightness(gamma_map)))
                                 .size(16)
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Shrink),
                         )
+                        .push(dropdown)
                         .spacing(12),
-                )
-                .into()
-            })
-            .collect()
-    }
-
-    fn settings_view(&self) -> Vec<Element<Message>> {
-        self.monitors
-            .iter()
-            .map(|(id, monitor)| {
-                padded_control(
-                    row()
+                ));
+                if monitor.settings_expanded {
+                    let row = row()
                         .align_y(Alignment::Center)
-                        .push(
-                            button::icon(
-                                icon::from_name(brightness_icon(monitor.brightness))
-                                    .size(24)
-                                    .symbolic(true),
-                            )
-                            .tooltip(&monitor.name),
-                        )
+                        .spacing(12)
+                        .push(tooltip(
+                            icon::from_name("emblem-system-symbolic").size(24),
+                            text(fl!("gamma-map")),
+                            tooltip::Position::Right,
+                        ))
                         .push(slider(
                             5..=20,
-                            (monitor.gamma_curve * 10.0) as u32,
-                            move |curve| Message::SetScreenCurve(id.clone(), curve as f32 / 10.0),
+                            (gamma_map * 10.0) as u16,
+                            move |gamma_map| {
+                                Message::SetMonGammaMap(id.clone(), gamma_map as f32 / 10.0)
+                            },
                         ))
-                        .push(
-                            text(format!("{:.1}", monitor.gamma_curve))
-                                .size(16)
-                                .width(Length::Fixed(40.0)),
-                        )
-                        .spacing(12),
-                )
-                .into()
+                        .push(text(format!("{:.1}", gamma_map)).size(16));
+                    column = column.push(padded_control(row));
+                }
+                Some(column.into())
             })
             .collect()
-    }
-
-    fn settings_collapsible_view(&self) -> Vec<Element<Message>> {
-        let mut vec = Vec::with_capacity(3);
-        // vec.push(padded_control(divider::horizontal::default()).into());
-        if !self.monitors.is_empty() {
-            vec.push(padded_control(divider::horizontal::default()).into());
-        }
-
-        let dropdown_icon = if self.show_settings {
-            "go-up-symbolic"
-        } else {
-            "go-down-symbolic"
-        };
-
-        let row = Row::new()
-            .push(
-                text::body(fl!("gamma-curve"))
-                    .width(Length::Fill)
-                    .height(Length::Fixed(24.0))
-                    .align_y(Alignment::Center),
-            )
-            .push(
-                cosmic::widget::container(icon::from_name(dropdown_icon).size(16).symbolic(true))
-                    .center(Length::Fixed(24.0)),
-            );
-        vec.push(
-            menu_button(row)
-                .on_press(Message::ShowSettings(!self.show_settings))
-                .into(),
-        );
-
-        vec
     }
 
     fn dark_mode_view(&self) -> Vec<Element<Message>> {
@@ -188,6 +162,14 @@ impl Window {
 
         vec
     }
+
+    fn update_config(&mut self) {
+        if let Some(rx) = &self.config_watch_rx {
+            while let Ok(c) = rx.try_recv() {
+                self.config = c;
+            }
+        }
+    }
 }
 
 impl cosmic::Application for Window {
@@ -205,12 +187,24 @@ impl cosmic::Application for Window {
     }
 
     fn init(core: Core, flags: Self::Flags) -> (Self, Task<Self::Message>) {
+        let (config_tx, config_rx) = std::sync::mpsc::channel();
         let window = Window {
             core,
             config_handler: flags.0,
             config: flags.1,
+            config_watch_rx: Some(config_rx),
             ..Default::default()
         };
+
+        if let Some(c) = &window.config_handler {
+            let watcher = c.watch(move |config, _strings| {
+                let Ok(config) = Config::get_entry(config) else {
+                    return;
+                };
+                config_tx.send(config).unwrap();
+            });
+            Box::leak(Box::new(watcher));
+        }
 
         (window, Task::none())
     }
@@ -224,30 +218,30 @@ impl cosmic::Application for Window {
 
         match message {
             Message::Refresh => {
-                if let Some(last_dirty) = self.last_config_dirty {
-                    if time::Instant::now().duration_since(last_dirty)
-                        > time::Duration::from_secs(5)
-                    {
-                        for (id, mon) in self.monitors.iter() {
-                            if let Some((_id, gamma)) = self
-                                .config
-                                .gamma_curves
-                                .iter_mut()
-                                .find(|(mon_id, _gamma)| mon_id == id)
-                            {
-                                *gamma = mon.gamma_curve
-                            } else {
-                                self.config.gamma_curves.push((id.clone(), mon.gamma_curve))
-                            }
-                        }
-                        if let Some(config_handler) = &self.config_handler {
-                            self.config
-                                .write_entry(config_handler)
-                                .unwrap_or_else(|e| error!("{e:?}"));
-                        }
-                        self.last_config_dirty = None;
-                    }
-                }
+                // if let Some(last_dirty) = self.last_config_dirty {
+                //     if time::Instant::now().duration_since(last_dirty)
+                //         > time::Duration::from_secs(5)
+                //     {
+                //         for (id, mon) in self.monitors.iter() {
+                //             if let Some((_id, gamma)) = self
+                //                 .config
+                //                 .gamma_curves
+                //                 .iter_mut()
+                //                 .find(|(mon_id, _gamma)| mon_id == id)
+                //             {
+                //                 *gamma = mon.gamma_curve
+                //             } else {
+                //                 self.config.gamma_curves.push((id.clone(), mon.gamma_curve))
+                //             }
+                //         }
+                //         if let Some(config_handler) = &self.config_handler {
+                //             self.config
+                //                 .write_entry(config_handler)
+                //                 .unwrap_or_else(|e| error!("{e:?}"));
+                //         }
+                //         self.last_config_dirty = None;
+                //     }
+                // }
             }
             Message::TogglePopup => {
                 self.show_settings = false;
@@ -255,6 +249,8 @@ impl cosmic::Application for Window {
                     destroy_popup(p)
                 } else {
                     self.send(EventToSub::Refresh);
+
+                    self.update_config();
 
                     let new_id = Id::unique();
                     self.popup.replace(new_id);
@@ -271,27 +267,37 @@ impl cosmic::Application for Window {
                 };
             }
             Message::PopupClosed(id) => {
+                if let Some(c) = &self.config_handler {
+                    let _ = self.config.write_entry(c);
+                }
                 if self.popup.as_ref() == Some(&id) {
                     self.popup = None;
                     self.show_settings = false;
                 }
             }
             Message::SetScreenBrightness(id, brightness) => {
-                if let Some(monitor) = self.monitors.get_mut(&id) {
-                    monitor.brightness = brightness;
-                    let b = monitor.get_curved_integer_brightness();
-                    self.send(EventToSub::Set(id, b));
+                if let Some(gamma_map) = self.config.get_gamma_map(&id) {
+                    if let Some(monitor) = self.monitors.get_mut(&id) {
+                        monitor.brightness = brightness;
+                        let b = monitor.get_mapped_brightness(gamma_map);
+                        self.send(EventToSub::Set(id, b));
+                    }
                 }
             }
-            Message::ChangeGlobalBrightness(brightness) => {
+            Message::ChangeGlobalBrightness(change) => {
+                self.update_config();
                 let ids: Vec<String> = self.monitors.keys().cloned().collect();
                 for id in ids {
+                    let Some(gamma_map) = self.config.get_gamma_map(&id) else {
+                        continue;
+                    };
                     match self.monitors.get_mut(&id) {
                         Some(monitor) => {
-                            // let b = (monitor.get_curved_brightness() + brightness).clamp(0.0, 1.0);
-                            // monitor.set_curved_brightness(b);
-                            monitor.change_brightness(brightness);
-                            let b = monitor.get_curved_integer_brightness();
+                            monitor.brightness = (monitor.brightness + change).clamp(0.0, 1.0);
+                            // monitor.set_brightness(brightness);
+                            // monitor.change_brightness(brightness);
+                            // let b = (monitor.brightness * 100.0) as u16;
+                            let b = monitor.get_mapped_brightness(gamma_map);
                             self.send(EventToSub::Set(id, b));
                         }
                         None => continue,
@@ -304,7 +310,7 @@ impl cosmic::Application for Window {
                         x if x < 0.5 => 100,
                         _ => 0,
                     };
-                    monitor.set_integer_brightness(new_val);
+                    // monitor.set_integer_brightness(new_val);
                     self.send(EventToSub::Set(id, new_val));
                 }
             }
@@ -319,32 +325,34 @@ impl cosmic::Application for Window {
             }
             Message::Ready((mon, sender)) => {
                 self.monitors = mon;
-                for (monitor_id, monitor) in self.monitors.iter_mut() {
-                    if let Some((_id, gamma)) = self
-                        .config
-                        .gamma_curves
-                        .iter()
-                        .find(|(id, _)| id == monitor_id)
-                    {
-                        monitor.gamma_curve = *gamma;
+                for (monitor_id, _monitor) in self.monitors.iter_mut() {
+                    if self.config.get_monitor(monitor_id).is_none() {
+                        self.config.monitors.push(config::Monitor {
+                            id: monitor_id.clone(),
+                            gamma_map: 1.0,
+                        })
                     }
                 }
                 self.sender.replace(sender);
             }
             Message::BrightnessWasUpdated(id, value) => {
-                if let Some(monitor) = self.monitors.get_mut(&id) {
-                    monitor.set_curved_integer_brightness(value);
+                if let Some(gamma_map) = self.config.get_gamma_map(&id) {
+                    if let Some(monitor) = self.monitors.get_mut(&id) {
+                        // monitor.brightness = value as f32 / 100.0;
+                        monitor.set_mapped_brightness(value, gamma_map);
+                    }
                 }
             }
-            Message::SetScreenCurve(id, value) => {
-                if let Some(monitor) = self.monitors.get_mut(&id) {
-                    monitor.gamma_curve = value;
-                    let b = monitor.get_curved_integer_brightness();
-                    self.last_config_dirty = Some(time::Instant::now());
-                    self.send(EventToSub::Set(id, b));
+            Message::SetMonGammaMap(id, value) => {
+                if let Some(conf_mon) = self.config.monitors.iter_mut().find(|x| x.id == id) {
+                    conf_mon.gamma_map = value;
                 }
             }
-            Message::ShowSettings(b) => self.show_settings = b,
+            Message::ToggleMonSettings(id) => {
+                if let Some(mon) = self.monitors.get_mut(&id) {
+                    mon.settings_expanded = !mon.settings_expanded;
+                }
+            }
         }
         Task::none()
     }
@@ -372,14 +380,14 @@ impl cosmic::Application for Window {
     }
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
-        let mut col = column()
+        let col = column()
             .padding([8, 0])
             .extend(self.sliders_view())
-            .extend(self.dark_mode_view())
-            .extend(self.settings_collapsible_view());
-        if self.show_settings {
-            col = col.extend(self.settings_view())
-        }
+            .extend(self.dark_mode_view());
+        // .extend(self.settings_collapsible_view());
+        // if self.show_settings {
+        //     col = col.extend(self.settings_view())
+        // }
         self.core.applet.popup_container(col).into()
     }
 

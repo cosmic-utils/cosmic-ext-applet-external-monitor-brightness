@@ -21,26 +21,36 @@ pub type DisplayId = String;
 pub struct Monitor {
     pub name: String,
     pub brightness: f32,
-    pub gamma_curve: f32,
+    pub settings_expanded: bool,
 }
+// impl Monitor {
+//     pub fn get_curved_brightness(&self) -> f32 {
+//         self.brightness.powf(self.gamma_curve).clamp(0.0, 1.0)
+//     }
+//     pub fn get_integer_brightness(&self) -> u16 {
+//         (self.brightness * 100.0).round() as u16
+//     }
+//     pub fn get_curved_integer_brightness(&self) -> u16 {
+//         (self.get_curved_brightness() * 100.0).round() as u16
+//     }
+//     pub fn set_integer_brightness(&mut self, brightness: u16) {
+//         self.brightness = brightness as f32 / 100.0;
+//     }
+//     pub fn set_curved_integer_brightness(&mut self, brightness: u16) {
+//         self.brightness = (brightness as f32 / 100.0).powf(1.0 / self.gamma_curve);
+//     }
+//     pub fn change_brightness(&mut self, change: f32) {
+//         self.brightness = (self.brightness + change).clamp(0.0, 1.0);
+//     }
+// }
+
 impl Monitor {
-    pub fn get_curved_brightness(&self) -> f32 {
-        self.brightness.powf(self.gamma_curve).clamp(0.0, 1.0)
+    pub fn get_mapped_brightness(&self, map: f32) -> u16 {
+        (self.brightness.powf(map) * 100.0).round() as u16
     }
-    pub fn get_integer_brightness(&self) -> u16 {
-        (self.brightness * 100.0).round() as u16
-    }
-    pub fn get_curved_integer_brightness(&self) -> u16 {
-        (self.get_curved_brightness() * 100.0).round() as u16
-    }
-    pub fn set_integer_brightness(&mut self, brightness: u16) {
-        self.brightness = brightness as f32 / 100.0;
-    }
-    pub fn set_curved_integer_brightness(&mut self, brightness: u16) {
-        self.brightness = (brightness as f32 / 100.0).powf(1.0 / self.gamma_curve);
-    }
-    pub fn change_brightness(&mut self, change: f32) {
-        self.brightness = (self.brightness + change).clamp(0.0, 1.0);
+
+    pub fn set_mapped_brightness(&mut self, brightness: u16, map: f32) {
+        self.brightness = (brightness as f32 / 100.0).powf(1.0 / map);
     }
 }
 
@@ -97,7 +107,8 @@ pub fn sub() -> impl Stream<Item = Message> {
                         let mon = Monitor {
                             name: display.info.model_name.clone().unwrap_or_default(),
                             brightness: curved_brightness,
-                            gamma_curve: curve,
+                            // gamma_curve: curve,
+                            settings_expanded: false,
                         };
 
                         res.insert(display.info.id.clone(), mon);

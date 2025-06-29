@@ -1,2 +1,2 @@
 dark-mode = Dark Mode
-gamma-curve = Gamma Curve
+gamma-map = Gamma Map
