@@ -102,10 +102,6 @@ impl Window {
                 tooltip::Position::Right,
             ))
         }
-        // let left = button::custom(left)
-        //     .padding(0)
-        //     .class(cosmic::style::Button::NavToggle)
-        //     .on_press(Message::ToggleMonSettings(id.clone()));
         let left = mouse_area(left)
             .on_press(Message::ToggleMinMaxBrightness(id.clone()))
             .on_right_press(Message::ToggleMonSettings(id.clone()))
@@ -415,7 +411,6 @@ impl cosmic::Application for Window {
             )
             .on_press(Message::TogglePopup);
         let btn = mouse_area(btn).on_scroll(|delta| {
-            println!("{delta:?}");
             let change = match delta {
                 cosmic::iced::mouse::ScrollDelta::Lines { x, y } => (x + y) / 20.0,
                 cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y / 300.0,
