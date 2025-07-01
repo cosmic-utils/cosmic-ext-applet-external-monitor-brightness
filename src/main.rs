@@ -9,6 +9,7 @@ extern crate tracing;
 
 mod app;
 mod config;
+mod icon;
 mod localize;
 mod monitor;
 

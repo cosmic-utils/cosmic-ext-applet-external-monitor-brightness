@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines -->
+
+<component type="desktop-application">
+    <id>io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness</id>
+
+    <name>External Monitor Brightness</name>
+    <name xml:lang="hu">Külső Monitor Fényerőszabályzó</name>
+    <summary>Change brightness of external monitors via DDC/CI protocol</summary>
+    <summary xml:lang="hu">Külső monitorok fényerejének szabályozása a DDC/CI protokollon keresztül</summary>
+
+    <metadata_license>MIT</metadata_license>
+    <project_license>GPL-3.0-only</project_license>
+
+    <project_group>COSMIC</project_group>
+
+    <developer id="tld.vendor">
+        <name>wiiznokes</name>
+    </developer>
+
+
+    <icon type="stock">io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness-symbolic</icon>
+
+    <url type="homepage">
+        https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness</url>
+    <url type="bugtracker">
+        https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness/issues</url>
+    <url type="contribute">
+        https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness</url>
+    <url type="translate">
+        https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness/tree/master/i18n</url>
+
+    <content_rating type="oars-1.1" />
+
+
+    <description>
+        <p>Change brightness of external monitors via DDC/CI protocol. You can also quickly toggle
+            system dark mode.</p>
+        <p xml:lang="hu">Állítsd be a külső monitorok fényerejét a DDC/CI protokoll segítségével. A rendszer sötét módjára is gyorsan át lehet váltani.</p>
+    </description>
+
+
+    <launchable type="desktop-id">
+        io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness.desktop</launchable>
+    <screenshots>
+        <screenshot type="default">
+            <image>
+                https://media.githubusercontent.com/media/cosmic-utils/cosmic-ext-applet-external-monitor-brightness/master/res/screenshot1.png</image>
+            <caption>The applet.</caption>
+            <caption xml:lang="hu">A kisalkalmazás.</caption>
+        </screenshot>
+    </screenshots>
+
+    <provides>
+        <id>com.system76.CosmicApplet</id>
+        <binaries>
+            <binary>cosmic-ext-applet-external-monitor-brightness</binary>
+        </binaries>
+    </provides>
+
+    <categories>
+        <category>Utility</category>
+    </categories>
+
+    <releases>
+        <release version="0.0.1" date="2025-06-19">
+        </release>
+    </releases>
+</component>

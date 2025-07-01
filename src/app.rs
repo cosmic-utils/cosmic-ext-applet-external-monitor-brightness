@@ -1,17 +1,17 @@
 use std::collections::HashMap;
-use std::time;
 
 use crate::config::{self, Config};
+use crate::icon::{icon_high, icon_low, icon_medium, icon_off};
 use crate::monitor::{DisplayId, EventToSub, Monitor};
 use crate::{fl, monitor};
+use anyhow::anyhow;
 use cosmic::app::{Core, Task};
 use cosmic::applet::padded_control;
 use cosmic::cosmic_config::Config as CosmicConfig;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{THEME_MODE_ID, ThemeMode};
-use cosmic::iced::futures::{SinkExt, Stream};
 use cosmic::iced::window::Id;
-use cosmic::iced::{Alignment, Length, Limits, Subscription, stream};
+use cosmic::iced::{Alignment, Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::{
@@ -23,10 +23,6 @@ use std::sync::mpsc::Receiver;
 use tokio::sync::watch::Sender;
 
 pub(crate) const ID: &str = "io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness";
-const ICON_HIGH: &str = "cosmic-applet-battery-display-brightness-high-symbolic";
-const ICON_MEDIUM: &str = "cosmic-applet-battery-display-brightness-medium-symbolic";
-const ICON_LOW: &str = "cosmic-applet-battery-display-brightness-low-symbolic";
-const ICON_OFF: &str = "cosmic-applet-battery-display-brightness-off-symbolic";
 
 #[derive(Default)]
 pub struct Window {
@@ -55,7 +51,7 @@ pub enum Message {
     ToggleMonSettings(String),
     Ready((HashMap<DisplayId, Monitor>, Sender<EventToSub>)),
     BrightnessWasUpdated(DisplayId, u16),
-    Refresh,
+    // Refresh,
 }
 
 impl Window {
@@ -93,9 +89,7 @@ impl Window {
         let mut left = column().spacing(8.0).padding(4.0);
 
         left = left.push(tooltip(
-            icon::from_name(brightness_icon(monitor.brightness))
-                .size(24)
-                .symbolic(true),
+            icon::icon(brightness_icon(monitor.brightness)).size(24),
             text(&monitor.name),
             tooltip::Position::Right,
         ));
@@ -233,32 +227,32 @@ impl cosmic::Application for Window {
         debug!("{:?}", message);
 
         match message {
-            Message::Refresh => {
-                // if let Some(last_dirty) = self.last_config_dirty {
-                //     if time::Instant::now().duration_since(last_dirty)
-                //         > time::Duration::from_secs(5)
-                //     {
-                //         for (id, mon) in self.monitors.iter() {
-                //             if let Some((_id, gamma)) = self
-                //                 .config
-                //                 .gamma_curves
-                //                 .iter_mut()
-                //                 .find(|(mon_id, _gamma)| mon_id == id)
-                //             {
-                //                 *gamma = mon.gamma_curve
-                //             } else {
-                //                 self.config.gamma_curves.push((id.clone(), mon.gamma_curve))
-                //             }
-                //         }
-                //         if let Some(config_handler) = &self.config_handler {
-                //             self.config
-                //                 .write_entry(config_handler)
-                //                 .unwrap_or_else(|e| error!("{e:?}"));
-                //         }
-                //         self.last_config_dirty = None;
-                //     }
-                // }
-            }
+            // Message::Refresh => {
+            // if let Some(last_dirty) = self.last_config_dirty {
+            //     if time::Instant::now().duration_since(last_dirty)
+            //         > time::Duration::from_secs(5)
+            //     {
+            //         for (id, mon) in self.monitors.iter() {
+            //             if let Some((_id, gamma)) = self
+            //                 .config
+            //                 .gamma_curves
+            //                 .iter_mut()
+            //                 .find(|(mon_id, _gamma)| mon_id == id)
+            //             {
+            //                 *gamma = mon.gamma_curve
+            //             } else {
+            //                 self.config.gamma_curves.push((id.clone(), mon.gamma_curve))
+            //             }
+            //         }
+            //         if let Some(config_handler) = &self.config_handler {
+            //             self.config
+            //                 .write_entry(config_handler)
+            //                 .unwrap_or_else(|e| error!("{e:?}"));
+            //         }
+            //         self.last_config_dirty = None;
+            //     }
+            // }
+            // }
             Message::TogglePopup => {
                 self.show_settings = false;
                 return if let Some(p) = self.popup.take() {
@@ -340,9 +334,24 @@ impl cosmic::Application for Window {
                 self.theme_mode_config = config;
             }
             Message::SetDarkMode(dark) => {
+                fn set_theme_mode(mode: &ThemeMode) -> anyhow::Result<()> {
+                    let home_dir = dirs::home_dir().ok_or(anyhow!("no home dir"))?;
+
+                    let helper = cosmic::cosmic_config::Config::with_custom_path(
+                        THEME_MODE_ID,
+                        ThemeMode::VERSION,
+                        home_dir.join(".config"),
+                    )?;
+
+                    mode.write_entry(&helper)?;
+
+                    Ok(())
+                }
+
                 self.theme_mode_config.is_dark = dark;
-                if let Ok(helper) = ThemeMode::config() {
-                    _ = self.theme_mode_config.write_entry(&helper);
+
+                if let Err(e) = set_theme_mode(&self.theme_mode_config) {
+                    error!("can't write theme mode {e}");
                 }
             }
             Message::Ready((mon, sender)) => {
@@ -383,12 +392,12 @@ impl cosmic::Application for Window {
         let btn = self
             .core
             .applet
-            .icon_button(
+            .icon_button_from_handle(
                 self.monitors
                     .values()
                     .next()
                     .map(|v| brightness_icon(v.brightness))
-                    .unwrap_or(ICON_OFF),
+                    .unwrap_or(icon_off()),
             )
             .on_press(Message::TogglePopup);
         let btn = mouse_area(btn).on_scroll(|delta| {
@@ -419,28 +428,19 @@ impl cosmic::Application for Window {
                 .watch_config(THEME_MODE_ID)
                 .map(|u| Message::ThemeModeConfigChanged(u.config)),
             Subscription::run(monitor::sub),
-            Subscription::run(refresh_sub),
+            // Subscription::run(refresh_sub),
         ])
     }
 }
 
-fn refresh_sub() -> impl Stream<Item = Message> {
-    stream::channel(10, |mut output| async move {
-        loop {
-            tokio::time::sleep(time::Duration::from_secs(10)).await;
-            output.send(Message::Refresh).await.unwrap();
-        }
-    })
-}
-
-fn brightness_icon(brightness: f32) -> &'static str {
+fn brightness_icon(brightness: f32) -> icon::Handle {
     if brightness > 0.66 {
-        ICON_HIGH
+        icon_high()
     } else if brightness > 0.33 {
-        ICON_MEDIUM
+        icon_medium()
     } else if brightness > 0.0 {
-        ICON_LOW
+        icon_low()
     } else {
-        ICON_OFF
+        icon_off()
     }
 }
