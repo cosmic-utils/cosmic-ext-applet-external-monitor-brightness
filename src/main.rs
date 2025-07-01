@@ -56,7 +56,5 @@ fn main() -> cosmic::iced::Result {
         }
     };
 
-    // config.write_entry(config_handler.as_ref().unwrap());
-
     cosmic::applet::run::<Window>((config_handler, config))
 }
