@@ -15,7 +15,7 @@ use cosmic::iced::{Alignment, Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::{
-    button, column, divider, horizontal_space, icon, mouse_area, row, slider, text, toggler,
+    column, container, divider, horizontal_space, icon, mouse_area, row, slider, text, toggler,
     tooltip,
 };
 use cosmic::{Element, iced_runtime};
@@ -45,7 +45,7 @@ pub enum Message {
     SetScreenBrightness(String, f32),
     SetMonGammaMap(String, f32),
     ChangeGlobalBrightness(f32),
-    // ToggleMinMaxBrightness(String),
+    ToggleMinMaxBrightness(String),
     ThemeModeConfigChanged(ThemeMode),
     SetDarkMode(bool),
     ToggleMonSettings(String),
@@ -102,10 +102,24 @@ impl Window {
                 tooltip::Position::Right,
             ))
         }
-        let left = button::custom(left)
-            .padding(0)
-            .class(cosmic::style::Button::NavToggle)
-            .on_press(Message::ToggleMonSettings(id.clone()));
+        // let left = button::custom(left)
+        //     .padding(0)
+        //     .class(cosmic::style::Button::NavToggle)
+        //     .on_press(Message::ToggleMonSettings(id.clone()));
+        let left = mouse_area(left)
+            .on_press(Message::ToggleMinMaxBrightness(id.clone()))
+            .on_right_press(Message::ToggleMonSettings(id.clone()))
+            .on_scroll(|delta| {
+                let change = match delta {
+                    cosmic::iced::mouse::ScrollDelta::Lines { x, y } => (x + y) / 20.0,
+                    cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y / 300.0,
+                };
+                Message::SetScreenBrightness(
+                    id.clone(),
+                    (monitor.brightness + change).clamp(0.0, 1.0),
+                )
+            });
+        let left = container(left).class(cosmic::style::Container::Dropdown);
 
         let mut right = column().spacing(8.0).padding(4.0);
         let main_slider = row()
@@ -320,16 +334,16 @@ impl cosmic::Application for Window {
                     };
                 }
             }
-            // Message::ToggleMinMaxBrightness(id) => {
-            //     if let Some(monitor) = self.monitors.get_mut(&id) {
-            //         let new_val = match monitor.brightness {
-            //             x if x < 0.5 => 100,
-            //             _ => 0,
-            //         };
-            //         monitor.brightness = new_val as f32 / 100.0;
-            //         self.send(EventToSub::Set(id, new_val));
-            //     }
-            // }
+            Message::ToggleMinMaxBrightness(id) => {
+                if let Some(monitor) = self.monitors.get_mut(&id) {
+                    let new_val = match monitor.brightness {
+                        x if x < 0.5 => 100,
+                        _ => 0,
+                    };
+                    monitor.brightness = new_val as f32 / 100.0;
+                    self.send(EventToSub::Set(id, new_val));
+                }
+            }
             Message::ThemeModeConfigChanged(config) => {
                 self.theme_mode_config = config;
             }
@@ -401,9 +415,10 @@ impl cosmic::Application for Window {
             )
             .on_press(Message::TogglePopup);
         let btn = mouse_area(btn).on_scroll(|delta| {
+            println!("{delta:?}");
             let change = match delta {
-                cosmic::iced::mouse::ScrollDelta::Lines { x, y } => (x + y).signum() / 20.0,
-                cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y.signum() / 20.0,
+                cosmic::iced::mouse::ScrollDelta::Lines { x, y } => (x + y) / 20.0,
+                cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y / 300.0,
             };
             Message::ChangeGlobalBrightness(change)
         });
