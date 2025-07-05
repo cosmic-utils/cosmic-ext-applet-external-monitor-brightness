@@ -69,39 +69,37 @@ impl AppState {
             .padding(2.0)
             .push(
                 container(
-                    column()
-                        .spacing(8.0)
-                        .padding(4.0)
-                        .push(
-                            mouse_area(tooltip(
+                    mouse_area(
+                        column()
+                            .spacing(8.0)
+                            .padding(4.0)
+                            .push(tooltip(
                                 icon::icon(brightness_icon(monitor.slider_brightness)).size(24),
                                 text(&monitor.name),
                                 tooltip::Position::Right,
                             ))
-                            .on_press(AppMessage::ToggleMinMaxBrightness(id.to_string()))
-                            .on_right_press(AppMessage::ToggleMonSettings(id.to_string()))
-                            .on_scroll(|delta| {
-                                let change = match delta {
-                                    cosmic::iced::mouse::ScrollDelta::Lines { x, y } => {
-                                        (x + y) / 20.0
-                                    }
-                                    cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y / 300.0,
-                                };
-                                AppMessage::SetScreenBrightness(
-                                    id.to_string(),
-                                    (monitor.slider_brightness + change).clamp(0.0, 1.0),
+                            .push_maybe(monitor.settings_expanded.then(|| {
+                                tooltip(
+                                    icon::from_name("emblem-system-symbolic")
+                                        .size(24)
+                                        .symbolic(true),
+                                    text(fl!("gamma-map")),
+                                    tooltip::Position::Right,
                                 )
-                            }),
+                            })),
+                    )
+                    .on_press(AppMessage::ToggleMinMaxBrightness(id.to_string()))
+                    .on_right_press(AppMessage::ToggleMonSettings(id.to_string()))
+                    .on_scroll(|delta| {
+                        let change = match delta {
+                            cosmic::iced::mouse::ScrollDelta::Lines { x, y } => (x + y) / 20.0,
+                            cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y / 300.0,
+                        };
+                        AppMessage::SetScreenBrightness(
+                            id.to_string(),
+                            (monitor.slider_brightness + change).clamp(0.0, 1.0),
                         )
-                        .push_maybe(monitor.settings_expanded.then(|| {
-                            tooltip(
-                                icon::from_name("emblem-system-symbolic")
-                                    .size(24)
-                                    .symbolic(true),
-                                text(fl!("gamma-map")),
-                                tooltip::Position::Right,
-                            )
-                        })),
+                    }),
                 )
                 .class(if monitor.settings_expanded {
                     cosmic::style::Container::Dropdown
