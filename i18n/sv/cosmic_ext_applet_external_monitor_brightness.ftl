@@ -1,1 +1,1 @@
-dark-mode = Mörkt läge
+dark_mode = Mörkt läge

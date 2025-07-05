@@ -1,13 +1,18 @@
-use crate::app::Window;
+use cosmic::cosmic_config::{self, CosmicConfigEntry};
+
+use crate::app::AppState;
+use crate::config::{CONFIG_VERSION, Config};
 use crate::localize::localize;
 
 #[macro_use]
 extern crate tracing;
 
 mod app;
+mod config;
 mod icon;
 mod localize;
 mod monitor;
+mod view;
 
 fn setup_logs() {
     use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -35,5 +40,23 @@ fn setup_logs() {
 fn main() -> cosmic::iced::Result {
     setup_logs();
     localize();
-    cosmic::applet::run::<Window>(())
+
+    let (config_handler, config) = match cosmic_config::Config::new(app::APPID, CONFIG_VERSION) {
+        Ok(config_handler) => {
+            let config = match Config::get_entry(&config_handler) {
+                Ok(ok) => ok,
+                Err((errs, config)) => {
+                    error!("errors loading config: {:?}", errs);
+                    config
+                }
+            };
+            (Some(config_handler), config)
+        }
+        Err(err) => {
+            error!("failed to create config handler: {}", err);
+            (None, Config::default())
+        }
+    };
+
+    cosmic::applet::run::<AppState>((config_handler, config))
 }

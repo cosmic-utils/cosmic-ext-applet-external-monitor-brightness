@@ -1,1 +1,2 @@
-dark-mode = Mode Sombre
+dark_mode = Mode Sombre
+refresh = Rafraîchir

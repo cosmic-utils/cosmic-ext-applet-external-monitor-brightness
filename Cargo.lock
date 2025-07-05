@@ -1043,6 +1043,7 @@ dependencies = [
  "i18n-embed-fl",
  "libcosmic",
  "rust-embed",
+ "serde",
  "tokio",
  "tracing",
  "tracing-journald",

@@ -11,14 +11,15 @@ use cosmic::iced::{
 use ddc_hi::{Ddc, Display};
 use tokio::sync::watch::Receiver;
 
-use crate::app::Message;
+use crate::app::AppMsg;
 
 const BRIGHTNESS_CODE: u8 = 0x10;
 
 pub type DisplayId = String;
+pub type ScreenBrightness = u16;
 
 #[derive(Debug, Clone)]
-pub struct Monitor {
+pub struct MonitorInfo {
     pub name: String,
     pub brightness: u16,
 }
@@ -26,16 +27,19 @@ pub struct Monitor {
 #[derive(Debug, Clone)]
 pub enum EventToSub {
     Refresh,
-    Set(DisplayId, u16),
+    Set(DisplayId, ScreenBrightness),
 }
 
 enum State {
     Waiting,
     Fetch,
-    Ready(HashMap<String, Arc<Mutex<Display>>>, Receiver<EventToSub>),
+    Ready(
+        HashMap<DisplayId, Arc<Mutex<Display>>>,
+        Receiver<EventToSub>,
+    ),
 }
 
-pub fn sub() -> impl Stream<Item = Message> {
+pub fn sub() -> impl Stream<Item = AppMsg> {
     stream::channel(100, |mut output| async move {
         let mut state = State::Waiting;
         let mut failed_attempts = 0;
@@ -69,8 +73,9 @@ pub fn sub() -> impl Stream<Item = Message> {
                                 continue;
                             }
                         };
+                        debug_assert!(brightness <= 100);
 
-                        let mon = Monitor {
+                        let mon = MonitorInfo {
                             name: display.info.model_name.clone().unwrap_or_default(),
                             brightness,
                         };
@@ -95,7 +100,10 @@ pub fn sub() -> impl Stream<Item = Message> {
                     let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
                     rx.mark_unchanged();
 
-                    output.send(Message::Ready((res, tx))).await.unwrap();
+                    output
+                        .send(AppMsg::SubscriptionReady((res, tx)))
+                        .await
+                        .unwrap();
                     state = State::Ready(displays, rx);
                 }
                 State::Ready(displays, rx) => {
@@ -114,7 +122,7 @@ pub fn sub() -> impl Stream<Item = Message> {
                                 match res {
                                     Ok(value) => {
                                         output
-                                            .send(Message::BrightnessWasUpdated(
+                                            .send(AppMsg::BrightnessWasUpdated(
                                                 id.clone(),
                                                 value.value(),
                                             ))
@@ -126,6 +134,7 @@ pub fn sub() -> impl Stream<Item = Message> {
                             }
                         }
                         EventToSub::Set(id, value) => {
+                            debug_assert!(value <= 100);
                             let display = displays.get_mut(&id).unwrap().clone();
 
                             let j = tokio::task::spawn_blocking(move || {

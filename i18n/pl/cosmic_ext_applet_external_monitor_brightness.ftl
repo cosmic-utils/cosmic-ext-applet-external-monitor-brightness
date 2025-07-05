@@ -1,1 +1,1 @@
-dark-mode = Tryb ciemny
+dark_mode = Tryb ciemny

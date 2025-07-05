@@ -1,1 +1,1 @@
-dark-mode = Donkere Modus
+dark_mode = Donkere Modus
