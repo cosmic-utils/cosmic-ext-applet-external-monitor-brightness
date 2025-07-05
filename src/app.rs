@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::config::{self, Config, MonitorConfig};
 use crate::monitor;
@@ -12,6 +13,7 @@ use cosmic::iced::window::Id;
 use cosmic::iced::{Limits, Subscription};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
+use cosmic::widget::Space;
 use cosmic::{Element, iced_runtime};
 use tokio::sync::watch::Sender;
 
@@ -43,21 +45,126 @@ impl MonitorState {
     }
 }
 
+#[derive(Debug, Clone)]
+struct Popup {
+    pub kind: PopupKind,
+    pub id: window::Id,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum PopupKind {
+    Popup,
+    QuickSettings,
+}
+
+fn now() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+}
+
+impl AppState {
+    fn toggle_popup(&mut self, kind: PopupKind) -> Task<AppMsg> {
+        match &self.popup {
+            Some(popup) => {
+                if popup.kind == kind {
+                    self.close_popup()
+                } else {
+                    Task::batch(vec![self.close_popup(), self.open_popup(kind)])
+                }
+            }
+            None => self.open_popup(kind),
+        }
+    }
+
+    fn close_popup(&mut self) -> Task<AppMsg> {
+        for mon in self.monitors.values_mut() {
+            mon.settings_expanded = false;
+        }
+
+        if let Some(popup) = self.popup.take() {
+            self.last_quit = Some((now(), popup.kind));
+
+            // info!("destroy {:?}", popup.id);
+            destroy_popup(popup.id)
+        } else {
+            Task::none()
+        }
+    }
+
+    fn open_popup(&mut self, kind: PopupKind) -> Task<AppMsg> {
+        // handle the case where the popup was closed by clicking the icon
+        if self
+            .last_quit
+            .map(|(t, k)| (now() - t) < 200 && k == kind)
+            .unwrap_or(false)
+        {
+            return Task::none();
+        }
+
+        let new_id = Id::unique();
+        // info!("will create {:?}", new_id);
+
+        let popup = Popup { kind, id: new_id };
+        self.popup.replace(popup);
+
+        match kind {
+            PopupKind::Popup => {
+                self.send(EventToSub::Refresh);
+
+                let mut popup_settings = self.core.applet.get_popup_settings(
+                    self.core.main_window_id().unwrap(),
+                    new_id,
+                    None,
+                    None,
+                    None,
+                );
+
+                popup_settings.positioner.size_limits = Limits::NONE
+                    .min_width(300.0)
+                    .max_width(400.0)
+                    .min_height(200.0)
+                    .max_height(500.0);
+                get_popup(popup_settings)
+            }
+            PopupKind::QuickSettings => {
+                let mut popup_settings = self.core.applet.get_popup_settings(
+                    self.core.main_window_id().unwrap(),
+                    new_id,
+                    None,
+                    None,
+                    None,
+                );
+
+                popup_settings.positioner.size_limits = Limits::NONE
+                    .min_width(200.0)
+                    .max_width(250.0)
+                    .min_height(200.0)
+                    .max_height(550.0);
+
+                get_popup(popup_settings)
+            }
+        }
+    }
+}
+
 pub struct AppState {
     pub core: Core,
-    popup: Option<Id>,
+    popup: Option<Popup>,
     pub monitors: HashMap<DisplayId, MonitorState>,
     pub theme_mode_config: ThemeMode,
     sender: Option<Sender<EventToSub>>,
-    show_settings: bool,
-    pub(crate) config: Config,
+    pub config: Config,
     config_handler: CosmicConfig,
+    last_quit: Option<(u128, PopupKind)>,
 }
 
 #[derive(Clone, Debug)]
-pub enum AppMessage {
+pub enum AppMsg {
     TogglePopup,
-    PopupClosed(Id),
+    ToggleQuickSettings,
+    ClosePopup,
 
     ConfigChanged(Config),
     ThemeModeConfigChanged(ThemeMode),
@@ -75,7 +182,7 @@ pub enum AppMessage {
     SubscriptionReady((HashMap<DisplayId, MonitorInfo>, Sender<EventToSub>)),
     /// Send from the subscription
     BrightnessWasUpdated(DisplayId, ScreenBrightness),
-    // Refresh,
+    Refresh,
 }
 
 impl AppState {
@@ -107,7 +214,7 @@ impl AppState {
 impl cosmic::Application for AppState {
     type Executor = cosmic::SingleThreadExecutor;
     type Flags = (Option<CosmicConfig>, Config);
-    type Message = AppMessage;
+    type Message = AppMsg;
     const APP_ID: &'static str = APPID;
 
     fn core(&self) -> &Core {
@@ -127,53 +234,33 @@ impl cosmic::Application for AppState {
             monitors: HashMap::new(),
             theme_mode_config: ThemeMode::default(),
             sender: None,
-            show_settings: false,
+            last_quit: None,
         };
 
         (window, Task::none())
     }
 
-    fn on_close_requested(&self, id: window::Id) -> Option<AppMessage> {
-        Some(AppMessage::PopupClosed(id))
+    fn on_close_requested(&self, id: window::Id) -> Option<AppMsg> {
+        info!("on_close_requested");
+
+        if let Some(popup) = &self.popup {
+            if popup.id == id {
+                return Some(AppMsg::ClosePopup);
+            }
+        }
+        None
     }
 
     fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         debug!("{:?}", message);
 
         match message {
-            AppMessage::TogglePopup => {
-                self.show_settings = false;
-                return if let Some(p) = self.popup.take() {
-                    destroy_popup(p)
-                } else {
-                    self.send(EventToSub::Refresh);
-
-                    let new_id = Id::unique();
-                    self.popup.replace(new_id);
-                    let mut popup_settings =
-                        self.core
-                            .applet
-                            .get_popup_settings(Id::RESERVED, new_id, None, None, None);
-                    popup_settings.positioner.size_limits = Limits::NONE
-                        .max_width(250.0)
-                        .min_width(300.0)
-                        .min_height(200.0)
-                        .max_height(1080.0);
-                    get_popup(popup_settings)
-                };
+            AppMsg::TogglePopup => {
+                return self.toggle_popup(PopupKind::Popup);
             }
-            AppMessage::PopupClosed(id) => {
-                // collapse all monitor settings
-                for (_id, mon) in self.monitors.iter_mut() {
-                    mon.settings_expanded = false;
-                }
-
-                if self.popup.as_ref() == Some(&id) {
-                    self.popup = None;
-                    self.show_settings = false;
-                }
-            }
-            AppMessage::SetScreenBrightness(id, slider_brightness) => {
+            AppMsg::ToggleQuickSettings => return self.toggle_popup(PopupKind::QuickSettings),
+            AppMsg::ClosePopup => return self.close_popup(),
+            AppMsg::SetScreenBrightness(id, slider_brightness) => {
                 if let Some(monitor) = self.monitors.get_mut(&id) {
                     monitor.slider_brightness = slider_brightness;
                     let gamma = self.config.get_gamma_map(&id);
@@ -181,7 +268,7 @@ impl cosmic::Application for AppState {
                     self.send(EventToSub::Set(id, b));
                 }
             }
-            AppMessage::ChangeGlobalBrightness { delta } => {
+            AppMsg::ChangeGlobalBrightness { delta } => {
                 let mut vec = Vec::with_capacity(self.monitors.len());
 
                 for (id, monitor) in self.monitors.iter_mut() {
@@ -198,7 +285,7 @@ impl cosmic::Application for AppState {
                     self.send(e);
                 }
             }
-            AppMessage::ToggleMinMaxBrightness(id) => {
+            AppMsg::ToggleMinMaxBrightness(id) => {
                 if let Some(monitor) = self.monitors.get_mut(&id) {
                     let new_val = match monitor.slider_brightness {
                         x if x < 0.5 => 100,
@@ -208,10 +295,10 @@ impl cosmic::Application for AppState {
                     self.send(EventToSub::Set(id, new_val));
                 }
             }
-            AppMessage::ThemeModeConfigChanged(config) => {
+            AppMsg::ThemeModeConfigChanged(config) => {
                 self.theme_mode_config = config;
             }
-            AppMessage::SetDarkMode(dark) => {
+            AppMsg::SetDarkMode(dark) => {
                 fn set_theme_mode(mode: &ThemeMode) -> anyhow::Result<()> {
                     let home_dir = dirs::home_dir().ok_or(anyhow!("no home dir"))?;
 
@@ -232,7 +319,7 @@ impl cosmic::Application for AppState {
                     error!("can't write theme mode {e}");
                 }
             }
-            AppMessage::SubscriptionReady((monitors, sender)) => {
+            AppMsg::SubscriptionReady((monitors, sender)) => {
                 self.monitors = monitors
                     .into_iter()
                     .map(|(id, m)| {
@@ -252,12 +339,12 @@ impl cosmic::Application for AppState {
 
                 self.sender.replace(sender);
             }
-            AppMessage::BrightnessWasUpdated(id, brightness) => {
+            AppMsg::BrightnessWasUpdated(id, brightness) => {
                 if let Some(monitor) = self.monitors.get_mut(&id) {
                     monitor.set_slider_brightness(brightness, self.config.get_gamma_map(&id));
                 }
             }
-            AppMessage::SetMonGammaMap(id, gamma) => {
+            AppMsg::SetMonGammaMap(id, gamma) => {
                 if let Some(monitor) = self.monitors.get(&id) {
                     let b = monitor.get_mapped_brightness(gamma);
                     self.send(EventToSub::Set(id.clone(), b));
@@ -267,12 +354,15 @@ impl cosmic::Application for AppState {
                     monitor.gamma_map = gamma;
                 });
             }
-            AppMessage::ToggleMonSettings(id) => {
+            AppMsg::ToggleMonSettings(id) => {
                 if let Some(mon) = self.monitors.get_mut(&id) {
                     mon.settings_expanded = !mon.settings_expanded;
                 }
             }
-            AppMessage::ConfigChanged(config) => self.config = config,
+            AppMsg::ConfigChanged(config) => self.config = config,
+            AppMsg::Refresh => {
+                self.send(EventToSub::Refresh);
+            }
         }
         Task::none()
     }
@@ -282,7 +372,16 @@ impl cosmic::Application for AppState {
     }
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
-        self.main_view()
+        let Some(popup) = &self.popup else {
+            return Space::new(0, 0).into();
+        };
+
+        let view = match &popup.kind {
+            PopupKind::Popup => self.popup_view(),
+            PopupKind::QuickSettings => self.quick_settings_view(),
+        };
+
+        self.core.applet.popup_container(view).into()
     }
 
     fn style(&self) -> Option<iced_runtime::Appearance> {
@@ -293,7 +392,7 @@ impl cosmic::Application for AppState {
         Subscription::batch(vec![
             self.core
                 .watch_config(THEME_MODE_ID)
-                .map(|u| AppMessage::ThemeModeConfigChanged(u.config)),
+                .map(|u| AppMsg::ThemeModeConfigChanged(u.config)),
             Subscription::run(monitor::sub),
             config::sub(),
             // Subscription::run(refresh_sub),

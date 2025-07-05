@@ -11,7 +11,7 @@ use cosmic::iced::{
 use ddc_hi::{Ddc, Display};
 use tokio::sync::watch::Receiver;
 
-use crate::app::AppMessage;
+use crate::app::AppMsg;
 
 const BRIGHTNESS_CODE: u8 = 0x10;
 
@@ -39,7 +39,7 @@ enum State {
     ),
 }
 
-pub fn sub() -> impl Stream<Item = AppMessage> {
+pub fn sub() -> impl Stream<Item = AppMsg> {
     stream::channel(100, |mut output| async move {
         let mut state = State::Waiting;
         let mut failed_attempts = 0;
@@ -101,7 +101,7 @@ pub fn sub() -> impl Stream<Item = AppMessage> {
                     rx.mark_unchanged();
 
                     output
-                        .send(AppMessage::SubscriptionReady((res, tx)))
+                        .send(AppMsg::SubscriptionReady((res, tx)))
                         .await
                         .unwrap();
                     state = State::Ready(displays, rx);
@@ -122,7 +122,7 @@ pub fn sub() -> impl Stream<Item = AppMessage> {
                                 match res {
                                     Ok(value) => {
                                         output
-                                            .send(AppMessage::BrightnessWasUpdated(
+                                            .send(AppMsg::BrightnessWasUpdated(
                                                 id.clone(),
                                                 value.value(),
                                             ))

@@ -1,16 +1,18 @@
-use crate::app::{AppMessage, AppState, MonitorState};
+use std::borrow::Cow;
+
+use crate::app::{AppMsg, AppState, MonitorState};
 use crate::fl;
 use crate::icon::{icon_high, icon_low, icon_medium, icon_off};
 use cosmic::Element;
 use cosmic::applet::padded_control;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{
-    column, container, divider, horizontal_space, icon, mouse_area, row, slider, text, toggler,
-    tooltip,
+    button, column, container, divider, horizontal_space, icon, mouse_area, row, slider, text,
+    toggler, tooltip,
 };
 
 impl AppState {
-    pub fn applet_button_view(&self) -> Element<AppMessage> {
+    pub fn applet_button_view(&self) -> Element<AppMsg> {
         mouse_area(
             self.core
                 .applet
@@ -21,35 +23,53 @@ impl AppState {
                         .map(|m| brightness_icon(m.slider_brightness))
                         .unwrap_or(icon_off()),
                 )
-                .on_press(AppMessage::TogglePopup),
+                .on_press(AppMsg::TogglePopup),
         )
         .on_scroll(|delta| {
             let delta = match delta {
                 cosmic::iced::mouse::ScrollDelta::Lines { x, y } => (x + y) / 20.0,
                 cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y / 300.0,
             };
-            AppMessage::ChangeGlobalBrightness { delta }
+            AppMsg::ChangeGlobalBrightness { delta }
         })
+        .on_right_release(AppMsg::ToggleQuickSettings)
         .into()
     }
 
-    pub fn main_view(&self) -> Element<AppMessage> {
-        self.core
-            .applet
-            .popup_container(
-                column()
-                    .padding(10)
-                    .push_maybe(self.monitors_view())
-                    .push_maybe(
-                        (!self.monitors.is_empty())
-                            .then(|| padded_control(divider::horizontal::default())),
-                    )
-                    .push(self.dark_mode_view()),
-            )
+    pub fn quick_settings_view(&self) -> Element<AppMsg> {
+        #[allow(dead_code)]
+        fn toggle_settings<'a>(
+            info: impl Into<Cow<'a, str>> + 'a,
+            value: bool,
+            f: impl Fn(bool) -> AppMsg + 'a,
+        ) -> Element<'a, AppMsg> {
+            row()
+                .push(text(info))
+                .push(horizontal_space())
+                .push(toggler(value).on_toggle(f))
+                .into()
+        }
+
+        column()
+            .width(Length::Fill)
+            .spacing(20)
+            .padding(10)
+            .push(button::text(fl!("refresh")).on_press(AppMsg::Refresh))
             .into()
     }
 
-    fn monitors_view(&self) -> Option<Element<AppMessage>> {
+    pub fn popup_view(&self) -> Element<AppMsg> {
+        column()
+            .padding(10)
+            .push_maybe(self.monitors_view())
+            .push_maybe(
+                (!self.monitors.is_empty()).then(|| padded_control(divider::horizontal::default())),
+            )
+            .push(self.dark_mode_view())
+            .into()
+    }
+
+    fn monitors_view(&self) -> Option<Element<AppMsg>> {
         (!self.monitors.is_empty()).then(|| {
             column()
                 .padding(8)
@@ -62,7 +82,7 @@ impl AppState {
         })
     }
 
-    fn monitor_view<'a>(&self, id: &'a str, monitor: &'a MonitorState) -> Element<'a, AppMessage> {
+    fn monitor_view<'a>(&self, id: &'a str, monitor: &'a MonitorState) -> Element<'a, AppMsg> {
         let gamma_map = self.config.get_gamma_map(id);
 
         row()
@@ -88,14 +108,14 @@ impl AppState {
                                 )
                             })),
                     )
-                    .on_press(AppMessage::ToggleMinMaxBrightness(id.to_string()))
-                    .on_right_press(AppMessage::ToggleMonSettings(id.to_string()))
+                    .on_press(AppMsg::ToggleMinMaxBrightness(id.to_string()))
+                    .on_right_press(AppMsg::ToggleMonSettings(id.to_string()))
                     .on_scroll(|delta| {
                         let change = match delta {
                             cosmic::iced::mouse::ScrollDelta::Lines { x, y } => (x + y) / 20.0,
                             cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y / 300.0,
                         };
-                        AppMessage::SetScreenBrightness(
+                        AppMsg::SetScreenBrightness(
                             id.to_string(),
                             (monitor.slider_brightness + change).clamp(0.0, 1.0),
                         )
@@ -119,7 +139,7 @@ impl AppState {
                                 0..=100,
                                 (monitor.slider_brightness * 100.0) as u16,
                                 move |brightness| {
-                                    AppMessage::SetScreenBrightness(
+                                    AppMsg::SetScreenBrightness(
                                         id.to_string(),
                                         brightness as f32 / 100.0,
                                     )
@@ -139,10 +159,7 @@ impl AppState {
                                 5..=20,
                                 (gamma_map * 10.0) as u16,
                                 move |gamma_map| {
-                                    AppMessage::SetMonGammaMap(
-                                        id.to_string(),
-                                        gamma_map as f32 / 10.0,
-                                    )
+                                    AppMsg::SetMonGammaMap(id.to_string(), gamma_map as f32 / 10.0)
                                 },
                             ))
                             .push(
@@ -228,18 +245,16 @@ impl AppState {
     //         .into()
     // }
 
-    fn dark_mode_view(&self) -> Element<AppMessage> {
+    fn dark_mode_view(&self) -> Element<AppMsg> {
         padded_control(
             mouse_area(
                 row()
                     .align_y(Alignment::Center)
                     .push(text(fl!("dark-mode")))
                     .push(horizontal_space())
-                    .push(
-                        toggler(self.theme_mode_config.is_dark).on_toggle(AppMessage::SetDarkMode),
-                    ),
+                    .push(toggler(self.theme_mode_config.is_dark).on_toggle(AppMsg::SetDarkMode)),
             )
-            .on_press(AppMessage::SetDarkMode(!self.theme_mode_config.is_dark)),
+            .on_press(AppMsg::SetDarkMode(!self.theme_mode_config.is_dark)),
         )
         .into()
     }

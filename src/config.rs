@@ -7,7 +7,7 @@ use cosmic::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    app::{APPID, AppMessage},
+    app::{APPID, AppMsg},
     monitor::DisplayId,
 };
 
@@ -37,7 +37,7 @@ impl Config {
     }
 }
 
-pub fn sub() -> Subscription<AppMessage> {
+pub fn sub() -> Subscription<AppMsg> {
     struct ConfigSubscription;
 
     cosmic_config::config_subscription(
@@ -49,6 +49,6 @@ pub fn sub() -> Subscription<AppMessage> {
         if !update.errors.is_empty() {
             error!("can't load config {:?}: {:?}", update.keys, update.errors);
         }
-        AppMessage::ConfigChanged(update.config)
+        AppMsg::ConfigChanged(update.config)
     })
 }
