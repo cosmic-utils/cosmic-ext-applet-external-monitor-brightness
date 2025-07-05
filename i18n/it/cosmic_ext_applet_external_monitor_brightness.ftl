@@ -1,1 +1,1 @@
-dark-mode = Modalità scura
+dark_mode = Modalità scura

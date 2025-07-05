@@ -1,1 +1,1 @@
-dark-mode = Sötét mód
+dark_mode = Sötét mód

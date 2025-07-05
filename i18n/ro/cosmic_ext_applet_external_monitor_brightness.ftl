@@ -1,1 +1,1 @@
-dark-mode = Mod întunecat
+dark_mode = Mod întunecat

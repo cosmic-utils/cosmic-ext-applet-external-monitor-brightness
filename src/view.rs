@@ -103,7 +103,7 @@ impl AppState {
                                     icon::from_name("emblem-system-symbolic")
                                         .size(24)
                                         .symbolic(true),
-                                    text(fl!("gamma-map")),
+                                    text(fl!("gamma_map")),
                                     tooltip::Position::Right,
                                 )
                             })),
@@ -225,7 +225,7 @@ impl AppState {
     //                         icon::from_name("emblem-system-symbolic")
     //                             .size(24)
     //                             .symbolic(true),
-    //                         text(fl!("gamma-map")),
+    //                         text(fl!("gamma_map")),
     //                         tooltip::Position::Right,
     //                     ))
     //                     .push(slider(
@@ -250,7 +250,7 @@ impl AppState {
             mouse_area(
                 row()
                     .align_y(Alignment::Center)
-                    .push(text(fl!("dark-mode")))
+                    .push(text(fl!("dark_mode")))
                     .push(horizontal_space())
                     .push(toggler(self.theme_mode_config.is_dark).on_toggle(AppMsg::SetDarkMode)),
             )
