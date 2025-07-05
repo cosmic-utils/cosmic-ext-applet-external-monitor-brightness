@@ -11,62 +11,35 @@ use cosmic::iced::{
 use ddc_hi::{Ddc, Display};
 use tokio::sync::watch::Receiver;
 
-use crate::app::Message;
+use crate::app::AppMessage;
 
 const BRIGHTNESS_CODE: u8 = 0x10;
 
 pub type DisplayId = String;
+pub type ScreenBrightness = u16;
 
 #[derive(Debug, Clone)]
-pub struct Monitor {
+pub struct MonitorInfo {
     pub name: String,
-    pub brightness: f32,
-    pub settings_expanded: bool,
-}
-// impl Monitor {
-//     pub fn get_curved_brightness(&self) -> f32 {
-//         self.brightness.powf(self.gamma_curve).clamp(0.0, 1.0)
-//     }
-//     pub fn get_integer_brightness(&self) -> u16 {
-//         (self.brightness * 100.0).round() as u16
-//     }
-//     pub fn get_curved_integer_brightness(&self) -> u16 {
-//         (self.get_curved_brightness() * 100.0).round() as u16
-//     }
-//     pub fn set_integer_brightness(&mut self, brightness: u16) {
-//         self.brightness = brightness as f32 / 100.0;
-//     }
-//     pub fn set_curved_integer_brightness(&mut self, brightness: u16) {
-//         self.brightness = (brightness as f32 / 100.0).powf(1.0 / self.gamma_curve);
-//     }
-//     pub fn change_brightness(&mut self, change: f32) {
-//         self.brightness = (self.brightness + change).clamp(0.0, 1.0);
-//     }
-// }
-
-impl Monitor {
-    pub fn get_mapped_brightness(&self, map: f32) -> u16 {
-        (self.brightness.powf(map) * 100.0).round() as u16
-    }
-
-    pub fn set_mapped_brightness(&mut self, brightness: u16, map: f32) {
-        self.brightness = (brightness as f32 / 100.0).powf(1.0 / map);
-    }
+    pub brightness: u16,
 }
 
 #[derive(Debug, Clone)]
 pub enum EventToSub {
     Refresh,
-    Set(DisplayId, u16),
+    Set(DisplayId, ScreenBrightness),
 }
 
 enum State {
     Waiting,
     Fetch,
-    Ready(HashMap<String, Arc<Mutex<Display>>>, Receiver<EventToSub>),
+    Ready(
+        HashMap<DisplayId, Arc<Mutex<Display>>>,
+        Receiver<EventToSub>,
+    ),
 }
 
-pub fn sub() -> impl Stream<Item = Message> {
+pub fn sub() -> impl Stream<Item = AppMessage> {
     stream::channel(100, |mut output| async move {
         let mut state = State::Waiting;
         let mut failed_attempts = 0;
@@ -101,14 +74,10 @@ pub fn sub() -> impl Stream<Item = Message> {
                             }
                         };
                         debug_assert!(brightness <= 100);
-                        let curve = 1.0;
-                        let curved_brightness = (brightness as f32 / 100.0).powf(curve);
 
-                        let mon = Monitor {
+                        let mon = MonitorInfo {
                             name: display.info.model_name.clone().unwrap_or_default(),
-                            brightness: curved_brightness,
-                            // gamma_curve: curve,
-                            settings_expanded: false,
+                            brightness,
                         };
 
                         res.insert(display.info.id.clone(), mon);
@@ -131,7 +100,10 @@ pub fn sub() -> impl Stream<Item = Message> {
                     let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
                     rx.mark_unchanged();
 
-                    output.send(Message::Ready((res, tx))).await.unwrap();
+                    output
+                        .send(AppMessage::SubscriptionReady((res, tx)))
+                        .await
+                        .unwrap();
                     state = State::Ready(displays, rx);
                 }
                 State::Ready(displays, rx) => {
@@ -150,7 +122,7 @@ pub fn sub() -> impl Stream<Item = Message> {
                                 match res {
                                     Ok(value) => {
                                         output
-                                            .send(Message::BrightnessWasUpdated(
+                                            .send(AppMessage::BrightnessWasUpdated(
                                                 id.clone(),
                                                 value.value(),
                                             ))

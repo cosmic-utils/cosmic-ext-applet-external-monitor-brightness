@@ -1,2 +1,2 @@
 [env]
-RUST_LOG = "warn,cosmic_ext_applet_external_monitor_brightness=info"
+RUST_LOG = "warn,cosmic_ext_applet_external_monitor_brightness=debug"
