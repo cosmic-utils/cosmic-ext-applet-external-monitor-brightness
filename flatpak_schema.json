@@ -10,7 +10,6 @@
   "finish-args": [
     "--share=ipc",
     "--socket=wayland",
-    "--socket=fallback-x11",
     "--talk-name=com.system76.CosmicSettingsDaemon",
     "--device=all",
     "--filesystem=~/.config/cosmic/com.system76.CosmicTheme.Mode:w"
