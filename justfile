@@ -37,7 +37,7 @@ clean:
 
 ###################  Test / Format
 
-pull: fmt prettier fix test
+pull: fmt prettier fix test fmt-just
 
 test:
     cargo test --workspace --all-features
@@ -47,6 +47,9 @@ fix:
 
 fmt:
     cargo fmt --all
+
+fmt-just:
+    just --unstable --fmt
 
 prettier:
     # install on Debian: sudo snap install node --classic
