@@ -7,16 +7,16 @@ repository = "https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor
 
 [dependencies]
 ddc-hi = "0.4"
-i18n-embed = { version = "0.15", features = [
+i18n-embed = { version = "0.16", features = [
     "fluent-system",
     "desktop-requester",
 ] }
-i18n-embed-fl = "0.9"
+i18n-embed-fl = "0.10"
 rust-embed = { version = "8", features = ["debug-embed"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-journald = "0.3"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1" }
 serde = "1.0.219"
 dirs = "6"
 anyhow = "1"
