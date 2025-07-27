@@ -115,7 +115,7 @@ update-flatpak:
 
 commit-update-flatpak:
     git -C cosmic-flatpak add .
-    git -C cosmic-flatpak commit -m "Update clipboard manager"
+    git -C cosmic-flatpak commit -m "Update {{ name }}"
     git -C cosmic-flatpak push origin update-{{ name }}
     xdg-open https://github.com/pop-os/cosmic-flatpak/compare/master...wiiznokes:update-{{ name }}?expand=1
 
