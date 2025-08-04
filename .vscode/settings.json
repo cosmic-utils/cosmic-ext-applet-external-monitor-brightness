@@ -1,10 +1,11 @@
 {
   "rust-analyzer.linkedProjects": ["./Cargo.toml"],
-  "rust-analyzer.initializeStopped": true,
-  "rust-analyzer.files.exclude": [".flatpak-builder", "flatpak-out"],
   "files.watcherExclude": {
     ".flatpak-builder": true,
+    "flatpak-builder-tools": true,
+    "repo": true,
     "flatpak-out": true,
-    "repo": true
-  }
+    "flatpak-repo": true,
+  },
+  "search.useIgnoreFiles": false
 }
