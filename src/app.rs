@@ -313,6 +313,10 @@ impl cosmic::Application for AppState {
                     Ok(())
                 }
 
+                let output = std::process::Command::new("env").output().unwrap().stdout;
+    let output = String::from_utf8(output).unwrap();
+    println!("{output}");
+
                 self.theme_mode_config.is_dark = dark;
 
                 if let Err(e) = set_theme_mode(&self.theme_mode_config) {
