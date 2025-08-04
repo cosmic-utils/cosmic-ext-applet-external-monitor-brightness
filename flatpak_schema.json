@@ -12,7 +12,7 @@
     "--socket=wayland",
     "--talk-name=com.system76.CosmicSettingsDaemon",
     "--device=all",
-    "--filesystem=xdg-config/cosmic/com.system76.CosmicTheme.Mode:rw",
+    "--filesystem=xdg-config/cosmic/com.system76.CosmicTheme.Mode:r",
     "--filesystem=xdg-config/cosmic:r"
   ],
   "build-options": {

@@ -5,7 +5,7 @@
     "flatpak-builder-tools": true,
     "repo": true,
     "flatpak-out": true,
-    "flatpak-repo": true,
+    "flatpak-repo": true
   },
   "search.useIgnoreFiles": false
 }
