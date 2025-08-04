@@ -26,8 +26,8 @@
       "name": "cosmic-ext-applet-external-monitor-brightness",
       "buildsystem": "simple",
       "build-commands": [
-        "just build-release --verbose --offline",
-        "just prefix=/app install"
+        "just build-debug --verbose --offline",
+        "just debug=1 prefix=/app install"
       ],
       "sources": [
         {
