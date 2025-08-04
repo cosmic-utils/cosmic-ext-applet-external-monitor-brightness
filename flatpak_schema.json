@@ -12,8 +12,8 @@
     "--socket=wayland",
     "--talk-name=com.system76.CosmicSettingsDaemon",
     "--device=all",
-    "--filesystem=xdg-config/cosmic/com.system76.CosmicTheme.Mode:ro",
-    "--filesystem=xdg-config/cosmic:ro"
+    "--filesystem=xdg-config/cosmic/com.system76.CosmicTheme.Mode:rw",
+    "--filesystem=xdg-config/cosmic:rw"
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
@@ -26,8 +26,8 @@
       "name": "cosmic-ext-applet-external-monitor-brightness",
       "buildsystem": "simple",
       "build-commands": [
-        "just build-debug --verbose --offline",
-        "just debug=1 prefix=/app install"
+        "just build-release --verbose --offline",
+        "just prefix=/app install"
       ],
       "sources": [
         {
