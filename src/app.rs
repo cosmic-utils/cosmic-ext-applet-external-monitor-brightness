@@ -299,6 +299,7 @@ impl cosmic::Application for AppState {
                 self.theme_mode_config = config;
             }
             AppMsg::SetDarkMode(dark) => {
+                #[allow(dead_code)]
                 fn set_theme_mode(mode: &ThemeMode) -> anyhow::Result<()> {
                     let home_dir = dirs::home_dir().ok_or(anyhow!("no home dir"))?;
 
@@ -313,13 +314,19 @@ impl cosmic::Application for AppState {
                     Ok(())
                 }
 
+                fn set_theme_mode2(mode: &ThemeMode) -> anyhow::Result<()> {
+                    let helper = ThemeMode::config()?;
+                    mode.write_entry(&helper)?;
+                    Ok(())
+                }
+
                 let output = std::process::Command::new("env").output().unwrap().stdout;
                 let output = String::from_utf8(output).unwrap();
                 println!("{output}");
 
                 self.theme_mode_config.is_dark = dark;
 
-                if let Err(e) = set_theme_mode(&self.theme_mode_config) {
+                if let Err(e) = set_theme_mode2(&self.theme_mode_config) {
                     error!("can't write theme mode {e}");
                 }
             }
