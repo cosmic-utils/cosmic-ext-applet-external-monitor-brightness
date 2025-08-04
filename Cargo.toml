@@ -16,7 +16,7 @@ rust-embed = { version = "8", features = ["debug-embed"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-journald = "0.3"
-tokio = { version = "1" }
+tokio = { version = "1", features = ["sync"] }
 serde = "1.0.219"
 dirs = "6"
 anyhow = "1"
@@ -25,7 +25,7 @@ anyhow = "1"
 git = "https://github.com/pop-os/libcosmic"
 # rev = "a85b3693994ef2b8275eca6a9eccc86a2d7e9f86"
 default-features = false
-features = ["applet", "tokio", "wayland", "dbus-config"]
+features = ["applet", "tokio", "wayland"]
 
 [patch."https://github.com/smithay/client-toolkit.git"]
 sctk = { package = "smithay-client-toolkit", version = "=0.19.2" }
