@@ -12,7 +12,8 @@
     "--socket=wayland",
     "--talk-name=com.system76.CosmicSettingsDaemon",
     "--device=all",
-    "--filesystem=~/.config/cosmic/com.system76.CosmicTheme.Mode:w"
+    "--filesystem=xdg-config/cosmic/com.system76.CosmicTheme.Mode:rw",
+    "--filesystem=xdg-config/cosmic:r"
   ],
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
