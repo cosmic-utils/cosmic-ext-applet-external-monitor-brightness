@@ -4,11 +4,10 @@ use crate::app::{AppMsg, AppState, MonitorState};
 use crate::fl;
 use crate::icon::{icon_high, icon_low, icon_medium, icon_off};
 use cosmic::Element;
-use cosmic::applet::padded_control;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{
-    button, column, container, divider, horizontal_space, icon, mouse_area, row, slider, text,
-    toggler, tooltip,
+    button, column, container, horizontal_space, icon, mouse_area, row, slider, text, toggler,
+    tooltip,
 };
 
 impl AppState {

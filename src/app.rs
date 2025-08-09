@@ -4,10 +4,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config::{self, Config, MonitorConfig};
 use crate::monitor;
 use crate::monitor::{DisplayId, EventToSub, MonitorInfo, ScreenBrightness};
-use anyhow::anyhow;
 use cosmic::app::{Core, Task};
 use cosmic::cosmic_config::Config as CosmicConfig;
-use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{THEME_MODE_ID, ThemeMode};
 use cosmic::iced::window::Id;
 use cosmic::iced::{Limits, Subscription};
@@ -168,7 +166,6 @@ pub enum AppMsg {
 
     ConfigChanged(Config),
     ThemeModeConfigChanged(ThemeMode),
-    SetDarkMode(bool),
 
     SetScreenBrightness(DisplayId, f32),
     ToggleMinMaxBrightness(DisplayId),
@@ -297,34 +294,6 @@ impl cosmic::Application for AppState {
             }
             AppMsg::ThemeModeConfigChanged(config) => {
                 self.theme_mode_config = config;
-            }
-            AppMsg::SetDarkMode(dark) => {
-                #[allow(dead_code)]
-                fn set_theme_mode(mode: &ThemeMode) -> anyhow::Result<()> {
-                    let home_dir = dirs::home_dir().ok_or(anyhow!("no home dir"))?;
-
-                    let helper = cosmic::cosmic_config::Config::with_custom_path(
-                        THEME_MODE_ID,
-                        ThemeMode::VERSION,
-                        home_dir.join(".config"),
-                    )?;
-
-                    mode.write_entry(&helper)?;
-
-                    Ok(())
-                }
-
-                fn set_theme_mode2(mode: &ThemeMode) -> anyhow::Result<()> {
-                    let helper = ThemeMode::config()?;
-                    mode.write_entry(&helper)?;
-                    Ok(())
-                }
-
-                self.theme_mode_config.is_dark = dark;
-
-                if let Err(e) = set_theme_mode2(&self.theme_mode_config) {
-                    error!("can't write theme mode {e}");
-                }
             }
             AppMsg::SubscriptionReady((monitors, sender)) => {
                 self.monitors = monitors
