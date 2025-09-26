@@ -54,7 +54,13 @@ impl AppState {
             .width(Length::Fill)
             .spacing(20)
             .padding(10)
-            .push(button::text(fl!("refresh")).on_press(AppMsg::Refresh))
+            .push(
+                row()
+                    .width(Length::Fill)
+                    .push(horizontal_space())
+                    .push(button::text(fl!("refresh")).on_press(AppMsg::Refresh))
+                    .push(horizontal_space()),
+            )
             .into()
     }
 
