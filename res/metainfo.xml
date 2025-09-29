@@ -6,8 +6,10 @@
     <id>io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness</id>
 
     <name>External Monitor Brightness</name>
+    <name xml:lang="cs">Jas externího monitoru</name>
     <name xml:lang="hu">Külső Monitor Fényerőszabályzó</name>
     <summary>Change brightness of external monitors via DDC/CI protocol</summary>
+    <summary xml:lang="cs">Měňte jas externích monitorů skrze protokol DDC/CI</summary>
     <summary xml:lang="hu">Külső monitorok fényerejének szabályozása a DDC/CI protokollon keresztül</summary>
 
     <metadata_license>MIT</metadata_license>
@@ -37,6 +39,7 @@
     <description>
         <p>Change brightness of external monitors via DDC/CI protocol. You can also quickly toggle
             system dark mode.</p>
+        <p xml:lang="cs">Měňte jas externích monitorů skrze protokol DDC/CI. Můžete také rychle přepínat tmavý režim systému.</p>
         <p xml:lang="hu">Állítsd be a külső monitorok fényerejét a DDC/CI protokoll segítségével. A rendszer sötét módjára is gyorsan át lehet váltani.</p>
     </description>
 
@@ -48,6 +51,7 @@
             <image>
                 https://media.githubusercontent.com/media/cosmic-utils/cosmic-ext-applet-external-monitor-brightness/master/res/screenshot1.png</image>
             <caption>The applet.</caption>
+            <caption xml:lang="cs">Ukázka appletu.</caption>
             <caption xml:lang="hu">A kisalkalmazás.</caption>
         </screenshot>
     </screenshots>
