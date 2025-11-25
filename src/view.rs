@@ -93,7 +93,7 @@ impl AppState {
                                     icon::from_name("emblem-system-symbolic")
                                         .size(24)
                                         .symbolic(true),
-                                    text("Monitor settings"),
+                                    text(fl!("monitor_settings")),
                                     tooltip::Position::Right,
                                 )
                             })),

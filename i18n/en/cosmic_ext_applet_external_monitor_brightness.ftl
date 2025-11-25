@@ -1,5 +1,6 @@
 dark_mode = Dark Mode
 gamma_map = Gamma Map
+monitor_settings = Monitor settings
 refresh = Refresh
 brightness = Brightness
 brightness_curve = Brightness Curve
