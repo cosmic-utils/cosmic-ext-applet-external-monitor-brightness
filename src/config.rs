@@ -13,27 +13,11 @@ use crate::{
 
 pub const CONFIG_VERSION: u64 = 1;
 
-/// How brightness changes (F1/F2 keys) should be applied to multiple displays
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-pub enum BrightnessSyncMode {
-    /// Apply brightness changes to all external displays
-    AllDisplays,
-    /// Apply brightness changes to primary display only
-    PrimaryOnly,
-}
-
-impl Default for BrightnessSyncMode {
-    fn default() -> Self {
-        Self::AllDisplays
-    }
-}
-
 #[derive(Clone, CosmicConfigEntry, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[derive(Default)]
 pub struct Config {
     pub monitors: HashMap<DisplayId, MonitorConfig>,
-    pub brightness_sync_mode: BrightnessSyncMode,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

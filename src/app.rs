@@ -174,7 +174,6 @@ pub enum AppMsg {
     ToggleMinMaxBrightness(DisplayId),
     ToggleMonSettings(DisplayId),
     SetMonGammaMap(DisplayId, f32),
-    SetBrightnessSyncMode(bool),  // true = AllDisplays, false = PrimaryOnly (deprecated)
     SetMonitorSyncEnabled(DisplayId, bool),  // Per-monitor F1/F2 sync toggle
     SetMonMinBrightness(DisplayId, u16),  // Per-monitor minimum brightness (0-100)
 
@@ -362,21 +361,6 @@ impl cosmic::Application for AppState {
             AppMsg::ToggleMonSettings(id) => {
                 if let Some(mon) = self.monitors.get_mut(&id) {
                     mon.settings_expanded = !mon.settings_expanded;
-                }
-            }
-            AppMsg::SetBrightnessSyncMode(all_displays) => {
-                use crate::config::BrightnessSyncMode;
-
-                let new_mode = if all_displays {
-                    BrightnessSyncMode::AllDisplays
-                } else {
-                    BrightnessSyncMode::PrimaryOnly
-                };
-
-                self.config.brightness_sync_mode = new_mode;
-
-                if let Err(e) = self.config.write_entry(&self.config_handler) {
-                    error!("can't write brightness sync mode config: {e}");
                 }
             }
             AppMsg::SetMonitorSyncEnabled(id, enabled) => {
