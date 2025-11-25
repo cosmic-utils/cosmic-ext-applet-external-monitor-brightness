@@ -93,7 +93,7 @@ impl AppState {
                                     icon::from_name("emblem-system-symbolic")
                                         .size(24)
                                         .symbolic(true),
-                                    text(fl!("gamma_map")),
+                                    text("Monitor settings"),
                                     tooltip::Position::Right,
                                 )
                             })),
