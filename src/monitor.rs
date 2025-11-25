@@ -99,16 +99,14 @@ enum State {
 
 pub fn sub() -> impl Stream<Item = AppMsg> {
     stream::channel(100, |mut output| async move {
-        let mut state = State::Waiting;
+        let mut state = State::Fetch; // Start immediately, no waiting
         let mut failed_attempts = 0;
-
-        let mut duration = Duration::from_millis(50);
 
         loop {
             match &mut state {
                 State::Waiting => {
-                    tokio::time::sleep(duration).await;
-                    duration *= 2;
+                    // Only wait 100ms between retries, no exponential backoff
+                    tokio::time::sleep(Duration::from_millis(100)).await;
                     state = State::Fetch;
                 }
                 State::Fetch => {
@@ -120,33 +118,62 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
 
                     let mut some_failed = false;
 
-                    // Enumerate DDC/CI displays
-                    for display in DdcCiDisplay::enumerate() {
-                        let mut backend = DisplayBackend::DdcCi(display);
+                    // Enumerate DDC/CI displays concurrently
+                    let ddc_displays = DdcCiDisplay::enumerate();
+                    let mut ddc_tasks = Vec::new();
 
-                        let brightness = match backend.get_brightness() {
-                            Ok(v) => v,
-                            // on my machine, i get this error when starting the session
-                            // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
-                            // This go away after the third attempt
-                            Err(e) => {
-                                error!("can't get_vcp_feature: {e}");
-                                some_failed = true;
-                                continue;
+                    for display in ddc_displays {
+                        let task = tokio::spawn(async move {
+                            let mut backend = DisplayBackend::DdcCi(display);
+
+                            // Wake up DDC by doing a read-write cycle
+                            // Some DDC monitors need an initial write to establish I2C communication
+                            if let Ok(current_brightness) = backend.get_brightness() {
+                                let _ = backend.set_brightness(current_brightness);
+                                // Small delay to let DDC settle
+                                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                             }
-                        };
-                        debug_assert!(brightness <= 100);
 
-                        let id = backend.id();
-                        let name = backend.name();
+                            let brightness = match backend.get_brightness() {
+                                Ok(v) => v,
+                                // on my machine, i get this error when starting the session
+                                // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
+                                // This go away after the third attempt
+                                Err(e) => {
+                                    error!("can't get_vcp_feature: {e}");
+                                    return Err(e);
+                                }
+                            };
+                            debug_assert!(brightness <= 100);
 
-                        let mon = MonitorInfo {
-                            name,
-                            brightness,
-                        };
+                            let id = backend.id();
+                            let name = backend.name();
 
-                        res.insert(id.clone(), mon);
-                        displays.insert(id, Arc::new(Mutex::new(backend)));
+                            let mon = MonitorInfo {
+                                name,
+                                brightness,
+                            };
+
+                            Ok((id, mon, backend))
+                        });
+                        ddc_tasks.push(task);
+                    }
+
+                    // Wait for all DDC tasks to complete
+                    for task in ddc_tasks {
+                        match task.await {
+                            Ok(Ok((id, mon, backend))) => {
+                                res.insert(id.clone(), mon);
+                                displays.insert(id, Arc::new(Mutex::new(backend)));
+                            }
+                            Ok(Err(_)) => {
+                                some_failed = true;
+                            }
+                            Err(e) => {
+                                error!("Task join error: {e}");
+                                some_failed = true;
+                            }
+                        }
                     }
 
                     // Enumerate Apple HID displays
@@ -195,9 +222,12 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                         failed_attempts += 1;
                     }
 
-                    // On some monitors this error is permanent
-                    // So we mark the app as ready if at least one monitor is loaded after 5 attempts
-                    if some_failed && failed_attempts < 5 {
+                    // If we have at least one monitor, send it to the UI immediately
+                    // and retry failed monitors in the background
+                    if !res.is_empty() {
+                        // We have at least one working monitor, proceed to ready state
+                    } else if some_failed && failed_attempts < 3 {
+                        // No monitors detected yet, retry up to 3 times
                         state = State::Waiting;
                         continue;
                     }
