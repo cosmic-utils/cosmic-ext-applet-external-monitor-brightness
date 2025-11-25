@@ -8,15 +8,73 @@ use cosmic::iced::{
     futures::{SinkExt, Stream},
     stream,
 };
-use ddc_hi::{Ddc, Display};
 use tokio::sync::watch::Receiver;
 
 use crate::app::AppMsg;
+use crate::protocols::{ddc_ci::DdcCiDisplay, DisplayProtocol};
 
-const BRIGHTNESS_CODE: u8 = 0x10;
+#[cfg(feature = "apple-studio-display")]
+use crate::protocols::apple_hid::AppleHidDisplay;
 
 pub type DisplayId = String;
 pub type ScreenBrightness = u16;
+
+/// Backend type for display control
+pub enum DisplayBackend {
+    /// DDC/CI protocol (standard external monitors via I2C)
+    DdcCi(DdcCiDisplay),
+    /// Apple HID protocol (Apple Studio Display, LG UltraFine, etc.)
+    #[cfg(feature = "apple-studio-display")]
+    AppleHid(AppleHidDisplay),
+}
+
+impl std::fmt::Debug for DisplayBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DisplayBackend::DdcCi(display) => write!(f, "{:?}", display),
+            #[cfg(feature = "apple-studio-display")]
+            DisplayBackend::AppleHid(display) => write!(f, "{:?}", display),
+        }
+    }
+}
+
+impl DisplayBackend {
+    /// Get the display ID
+    pub fn id(&self) -> String {
+        match self {
+            DisplayBackend::DdcCi(display) => display.id(),
+            #[cfg(feature = "apple-studio-display")]
+            DisplayBackend::AppleHid(display) => display.id(),
+        }
+    }
+
+    /// Get the display name
+    pub fn name(&self) -> String {
+        match self {
+            DisplayBackend::DdcCi(display) => display.name(),
+            #[cfg(feature = "apple-studio-display")]
+            DisplayBackend::AppleHid(display) => display.name(),
+        }
+    }
+
+    /// Get the current brightness (0-100)
+    pub fn get_brightness(&mut self) -> anyhow::Result<u16> {
+        match self {
+            DisplayBackend::DdcCi(display) => display.get_brightness(),
+            #[cfg(feature = "apple-studio-display")]
+            DisplayBackend::AppleHid(display) => display.get_brightness(),
+        }
+    }
+
+    /// Set the brightness (0-100)
+    pub fn set_brightness(&mut self, value: u16) -> anyhow::Result<()> {
+        match self {
+            DisplayBackend::DdcCi(display) => display.set_brightness(value),
+            #[cfg(feature = "apple-studio-display")]
+            DisplayBackend::AppleHid(display) => display.set_brightness(value),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct MonitorInfo {
@@ -34,7 +92,7 @@ enum State {
     Waiting,
     Fetch,
     Ready(
-        HashMap<DisplayId, Arc<Mutex<Display>>>,
+        HashMap<DisplayId, Arc<Mutex<DisplayBackend>>>,
         Receiver<EventToSub>,
     ),
 }
@@ -61,9 +119,13 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                     debug!("start enumerate");
 
                     let mut some_failed = false;
-                    for mut display in Display::enumerate() {
-                        let brightness = match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
-                            Ok(v) => v.value(),
+
+                    // Enumerate DDC/CI displays
+                    for display in DdcCiDisplay::enumerate() {
+                        let mut backend = DisplayBackend::DdcCi(display);
+
+                        let brightness = match backend.get_brightness() {
+                            Ok(v) => v,
                             // on my machine, i get this error when starting the session
                             // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
                             // This go away after the third attempt
@@ -75,13 +137,58 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                         };
                         debug_assert!(brightness <= 100);
 
+                        let id = backend.id();
+                        let name = backend.name();
+
                         let mon = MonitorInfo {
-                            name: display.info.model_name.clone().unwrap_or_default(),
+                            name,
                             brightness,
                         };
 
-                        res.insert(display.info.id.clone(), mon);
-                        displays.insert(display.info.id.clone(), Arc::new(Mutex::new(display)));
+                        res.insert(id.clone(), mon);
+                        displays.insert(id, Arc::new(Mutex::new(backend)));
+                    }
+
+                    // Enumerate Apple HID displays
+                    #[cfg(feature = "apple-studio-display")]
+                    {
+                        match hidapi::HidApi::new() {
+                            Ok(api) => {
+                                match AppleHidDisplay::enumerate(&api) {
+                                    Ok(apple_displays) => {
+                                        for display in apple_displays {
+                                            let mut backend = DisplayBackend::AppleHid(display);
+
+                                            let brightness = match backend.get_brightness() {
+                                                Ok(v) => v,
+                                                Err(e) => {
+                                                    error!("can't get Apple HID display brightness: {e}");
+                                                    some_failed = true;
+                                                    continue;
+                                                }
+                                            };
+
+                                            let id = backend.id();
+                                            let name = backend.name();
+
+                                            let mon = MonitorInfo {
+                                                name,
+                                                brightness,
+                                            };
+
+                                            res.insert(id.clone(), mon);
+                                            displays.insert(id, Arc::new(Mutex::new(backend)));
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to enumerate Apple HID displays: {e}");
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                error!("Failed to initialize HID API: {e}");
+                            }
+                        }
                     }
 
                     if some_failed {
@@ -116,15 +223,14 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                                 let res = display
                                     .lock()
                                     .unwrap()
-                                    .handle
-                                    .get_vcp_feature(BRIGHTNESS_CODE);
+                                    .get_brightness();
 
                                 match res {
                                     Ok(value) => {
                                         output
                                             .send(AppMsg::BrightnessWasUpdated(
                                                 id.clone(),
-                                                value.value(),
+                                                value,
                                             ))
                                             .await
                                             .unwrap();
@@ -141,8 +247,7 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                                 if let Err(err) = display
                                     .lock()
                                     .unwrap()
-                                    .handle
-                                    .set_vcp_feature(BRIGHTNESS_CODE, value)
+                                    .set_brightness(value)
                                 {
                                     error!("{:?}", err);
                                 }

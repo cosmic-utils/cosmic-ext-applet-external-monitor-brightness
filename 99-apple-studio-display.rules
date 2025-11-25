@@ -1,0 +1,16 @@
+# Udev rules for Apple Studio Display brightness control
+#
+# This file provides the necessary permissions to access Apple Studio Display
+# via USB HID without requiring root privileges.
+#
+# Installation:
+#   sudo cp 99-apple-studio-display.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
+#
+# After installation, you may need to unplug and replug the display,
+# or reboot your system for the changes to take effect.
+
+# Apple Studio Display (USB Vendor ID: 0x05ac, Product ID: 0x1114)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="05ac", ATTRS{idProduct}=="1114", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="05ac", ATTRS{idProduct}=="1114", MODE="0666", TAG+="uaccess"
