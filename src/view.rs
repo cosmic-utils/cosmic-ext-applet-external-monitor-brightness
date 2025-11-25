@@ -132,6 +132,10 @@ impl AppState {
                     .spacing(8.0)
                     .padding(4.0)
                     .push(
+                        text(&monitor.name)
+                            .size(12),
+                    )
+                    .push(
                         row()
                             .spacing(12)
                             .align_y(Alignment::Center)

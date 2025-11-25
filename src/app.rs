@@ -183,6 +183,8 @@ pub enum AppMsg {
     /// Send from the subscription
     BrightnessWasUpdated(DisplayId, ScreenBrightness),
     Refresh,
+    /// No operation message (for daemon spawn task)
+    Noop,
 }
 
 impl AppState {
@@ -236,6 +238,14 @@ impl cosmic::Application for AppState {
             sender: None,
             last_quit: None,
         };
+
+        // Spawn brightness sync daemon if Apple displays are detected
+        #[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+        {
+            tokio::spawn(async {
+                crate::brightness_sync_daemon::spawn_if_needed().await;
+            });
+        }
 
         (window, Task::none())
     }
@@ -369,6 +379,9 @@ impl cosmic::Application for AppState {
             AppMsg::ConfigChanged(config) => self.config = config,
             AppMsg::Refresh => {
                 self.send(EventToSub::Refresh);
+            }
+            AppMsg::Noop => {
+                // No operation - used for daemon spawn task completion
             }
         }
         Task::none()
