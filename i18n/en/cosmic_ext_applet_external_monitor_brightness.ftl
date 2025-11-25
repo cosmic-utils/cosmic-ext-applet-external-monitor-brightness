@@ -4,5 +4,5 @@ monitor_settings = Monitor settings
 refresh = Refresh
 brightness = Brightness
 brightness_curve = Brightness Curve
-sync_brightness_keys = Sync with F1/F2 Keys
+sync_brightness_keys = Listen to brightness keys
 minimum_brightness = Minimum Brightness
