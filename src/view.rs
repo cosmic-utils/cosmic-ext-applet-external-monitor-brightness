@@ -7,33 +7,23 @@ use cosmic::Element;
 use cosmic::applet::padded_control;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{
-    button, column, container, divider, horizontal_space, icon, mouse_area, row, slider, text,
+    button, column, container, divider, horizontal_space, icon, mouse_area, row, slider, text, text_input,
     toggler, tooltip,
 };
 
 impl AppState {
     pub fn applet_button_view(&self) -> Element<AppMsg> {
-        mouse_area(
-            self.core
-                .applet
-                .icon_button_from_handle(
-                    self.monitors
-                        .values()
-                        .next()
-                        .map(|m| brightness_icon(m.slider_brightness))
-                        .unwrap_or(icon_off()),
-                )
-                .on_press(AppMsg::TogglePopup),
-        )
-        .on_scroll(|delta| {
-            let delta = match delta {
-                cosmic::iced::mouse::ScrollDelta::Lines { x, y } => (x + y) / 20.0,
-                cosmic::iced::mouse::ScrollDelta::Pixels { y, .. } => y / 300.0,
-            };
-            AppMsg::ChangeGlobalBrightness { delta }
-        })
-        .on_right_release(AppMsg::ToggleQuickSettings)
-        .into()
+        self.core
+            .applet
+            .icon_button_from_handle(
+                self.monitors
+                    .values()
+                    .next()
+                    .map(|m| brightness_icon(m.slider_brightness))
+                    .unwrap_or(icon_off()),
+            )
+            .on_press(AppMsg::TogglePopup)
+            .into()
     }
 
     pub fn quick_settings_view(&self) -> Element<AppMsg> {
@@ -156,20 +146,81 @@ impl AppState {
                             ),
                     )
                     .push_maybe(monitor.settings_expanded.then(|| {
-                        row()
-                            .spacing(12)
-                            .align_y(Alignment::Center)
-                            .push(slider(
-                                5..=20,
-                                (gamma_map * 10.0) as u16,
-                                move |gamma_map| {
-                                    AppMsg::SetMonGammaMap(id.to_string(), gamma_map as f32 / 10.0)
-                                },
-                            ))
+                        let min_brightness = self.config.get_min_brightness(id);
+                        column()
+                            .spacing(8)
                             .push(
-                                text(format!("{gamma_map:.1}"))
-                                    .size(16)
-                                    .width(Length::Fixed(35.0)),
+                                row()
+                                    .spacing(12)
+                                    .align_y(Alignment::Center)
+                                    .push(
+                                        icon::from_name("preferences-desktop-display-symbolic")
+                                            .size(16)
+                                            .symbolic(true)
+                                    )
+                                    .push(text(fl!("brightness_curve")).size(12))
+                                    .push(horizontal_space())
+                                    .push(
+                                        button::text("-")
+                                            .padding([2, 8])
+                                            .on_press(AppMsg::SetMonGammaMap(
+                                                id.to_string(),
+                                                (gamma_map - 0.1).max(0.3)
+                                            ))
+                                    )
+                                    .push(
+                                        text(format!("{gamma_map:.2}"))
+                                            .size(16)
+                                            .width(Length::Fixed(40.0))
+                                    )
+                                    .push(
+                                        button::text("+")
+                                            .padding([2, 8])
+                                            .on_press(AppMsg::SetMonGammaMap(
+                                                id.to_string(),
+                                                (gamma_map + 0.1).min(3.0)
+                                            ))
+                                    )
+                            )
+                            .push(
+                                row()
+                                    .spacing(12)
+                                    .align_y(Alignment::Center)
+                                    .push(
+                                        icon::from_name("display-brightness-symbolic")
+                                            .size(16)
+                                            .symbolic(true)
+                                    )
+                                    .push(text(fl!("minimum_brightness")).size(12))
+                                    .push(horizontal_space())
+                                    .push(slider(
+                                        0..=100,
+                                        min_brightness,
+                                        move |min_val| {
+                                            AppMsg::SetMonMinBrightness(id.to_string(), min_val)
+                                        },
+                                    ))
+                                    .push(
+                                        text(format!("{}%", min_brightness))
+                                            .size(16)
+                                            .width(Length::Fixed(35.0)),
+                                    )
+                            )
+                            .push(
+                                row()
+                                    .spacing(12)
+                                    .align_y(Alignment::Center)
+                                    .push(
+                                        icon::from_name("input-keyboard-symbolic")
+                                            .size(16)
+                                            .symbolic(true)
+                                    )
+                                    .push(text(fl!("sync_brightness_keys")).size(12))
+                                    .push(horizontal_space())
+                                    .push(
+                                        toggler(self.config.is_sync_enabled(id))
+                                            .on_toggle(move |enabled| AppMsg::SetMonitorSyncEnabled(id.to_string(), enabled))
+                                    )
                             )
                     })),
             )
