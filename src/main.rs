@@ -8,8 +8,10 @@ use crate::localize::localize;
 extern crate tracing;
 
 mod app;
-#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
+#[cfg(feature = "brightness-sync-daemon")]
 mod daemon;
+#[cfg(feature = "brightness-sync-daemon")]
+mod ui_sync;
 mod config;
 #[cfg(feature = "apple-hid-displays")]
 mod devices;

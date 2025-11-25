@@ -172,11 +172,11 @@ pub enum AppMsg {
 
     SetScreenBrightness(DisplayId, f32),
     ToggleMinMaxBrightness(DisplayId),
-    ChangeGlobalBrightness {
-        delta: f32,
-    },
     ToggleMonSettings(DisplayId),
     SetMonGammaMap(DisplayId, f32),
+    SetBrightnessSyncMode(bool),  // true = AllDisplays, false = PrimaryOnly (deprecated)
+    SetMonitorSyncEnabled(DisplayId, bool),  // Per-monitor F1/F2 sync toggle
+    SetMonMinBrightness(DisplayId, u16),  // Per-monitor minimum brightness (0-100)
 
     /// Send from the subscription
     SubscriptionReady((HashMap<DisplayId, MonitorInfo>, Sender<EventToSub>)),
@@ -239,8 +239,8 @@ impl cosmic::Application for AppState {
             last_quit: None,
         };
 
-        // Spawn brightness sync daemon if Apple HID displays are detected
-        #[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
+        // Spawn brightness sync daemon if external displays are detected
+        #[cfg(feature = "brightness-sync-daemon")]
         {
             tokio::spawn(async {
                 crate::daemon::spawn_if_needed().await;
@@ -274,25 +274,13 @@ impl cosmic::Application for AppState {
                 if let Some(monitor) = self.monitors.get_mut(&id) {
                     monitor.slider_brightness = slider_brightness;
                     let gamma = self.config.get_gamma_map(&id);
-                    let b = monitor.get_mapped_brightness(gamma);
+                    let min_brightness = self.config.get_min_brightness(&id);
+                    let mut b = monitor.get_mapped_brightness(gamma);
+                    // Apply minimum brightness clamp
+                    if b < min_brightness {
+                        b = min_brightness;
+                    }
                     self.send(EventToSub::Set(id, b));
-                }
-            }
-            AppMsg::ChangeGlobalBrightness { delta } => {
-                let mut vec = Vec::with_capacity(self.monitors.len());
-
-                for (id, monitor) in self.monitors.iter_mut() {
-                    monitor.slider_brightness = (monitor.slider_brightness + delta).clamp(0.0, 1.0);
-
-                    let gamma = self.config.get_gamma_map(id);
-
-                    let b = monitor.get_mapped_brightness(gamma);
-
-                    vec.push(EventToSub::Set(id.clone(), b));
-                }
-
-                for e in vec {
-                    self.send(e);
                 }
             }
             AppMsg::ToggleMinMaxBrightness(id) => {
@@ -376,6 +364,31 @@ impl cosmic::Application for AppState {
                     mon.settings_expanded = !mon.settings_expanded;
                 }
             }
+            AppMsg::SetBrightnessSyncMode(all_displays) => {
+                use crate::config::BrightnessSyncMode;
+
+                let new_mode = if all_displays {
+                    BrightnessSyncMode::AllDisplays
+                } else {
+                    BrightnessSyncMode::PrimaryOnly
+                };
+
+                self.config.brightness_sync_mode = new_mode;
+
+                if let Err(e) = self.config.write_entry(&self.config_handler) {
+                    error!("can't write brightness sync mode config: {e}");
+                }
+            }
+            AppMsg::SetMonitorSyncEnabled(id, enabled) => {
+                self.update_monitor_config(&id, |monitor| {
+                    monitor.sync_with_brightness_keys = enabled;
+                });
+            }
+            AppMsg::SetMonMinBrightness(id, min_brightness) => {
+                self.update_monitor_config(&id, |monitor| {
+                    monitor.min_brightness = min_brightness;
+                });
+            }
             AppMsg::ConfigChanged(config) => self.config = config,
             AppMsg::Refresh => {
                 self.send(EventToSub::Refresh);
@@ -409,13 +422,18 @@ impl cosmic::Application for AppState {
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
-        Subscription::batch(vec![
+        let mut subs = vec![
             self.core
                 .watch_config(THEME_MODE_ID)
                 .map(|u| AppMsg::ThemeModeConfigChanged(u.config)),
             Subscription::run(monitor::sub),
             config::sub(),
-            // Subscription::run(refresh_sub),
-        ])
+        ];
+
+        // Add UI sync subscription when daemon feature is enabled
+        #[cfg(feature = "brightness-sync-daemon")]
+        subs.push(Subscription::run(crate::ui_sync::sub));
+
+        Subscription::batch(subs)
     }
 }
