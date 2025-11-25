@@ -23,4 +23,5 @@ pub const SPEC: DeviceSpec = DeviceSpec {
     min_brightness_value: 400,
     max_brightness_value: 50000,
     actual_brightness_nits: 500, // 500 nits brightness
+    default_gamma: 1.8, // Co-developed with Apple, uses Apple's gamma curve
 };

@@ -40,6 +40,10 @@ pub struct DeviceSpec {
     /// Actual maximum brightness capability in nits (physical measurement)
     /// This is for documentation and user information only
     pub actual_brightness_nits: u16,
+
+    /// Default gamma curve for this device (1.0 = linear, <1.0 = brighter at low values, >1.0 = darker at low values)
+    /// Apple displays typically work well with 1.8, most others with 1.0 (linear)
+    pub default_gamma: f32,
 }
 
 impl DeviceSpec {

@@ -15,4 +15,5 @@ pub const SPEC: DeviceSpec = DeviceSpec {
     min_brightness_value: 400,
     max_brightness_value: 60000,
     actual_brightness_nits: 600, // 600 nits SDR brightness
+    default_gamma: 1.8, // Apple displays work well with 1.8 gamma for better perceived brightness linearity
 };
