@@ -1,0 +1,23 @@
+# udev rules for Apple HID display brightness control
+#
+# This allows unprivileged users to control the brightness of
+# Apple displays via USB HID feature reports.
+#
+# Vendor ID: 0x05ac (Apple Inc.)
+# Supported displays:
+#   - Apple Studio Display (Product ID: 0x1114)
+#   - Apple Pro Display XDR (Product ID: 0x9243)
+#   - LG UltraFine 5K (Product ID: 0x9236)
+#   - LG UltraFine 4K (Product ID: 0x9215)
+
+# Apple Studio Display
+KERNEL=="hidraw*", ATTRS{idVendor}=="05ac", ATTRS{idProduct}=="1114", MODE="0660", TAG+="uaccess"
+
+# Apple Pro Display XDR
+KERNEL=="hidraw*", ATTRS{idVendor}=="05ac", ATTRS{idProduct}=="9243", MODE="0660", TAG+="uaccess"
+
+# LG UltraFine 5K (co-developed with Apple)
+KERNEL=="hidraw*", ATTRS{idVendor}=="05ac", ATTRS{idProduct}=="9236", MODE="0660", TAG+="uaccess"
+
+# LG UltraFine 4K (co-developed with Apple)
+KERNEL=="hidraw*", ATTRS{idVendor}=="05ac", ATTRS{idProduct}=="9215", MODE="0660", TAG+="uaccess"

@@ -6,8 +6,8 @@ license = "GPL-3.0-only"
 repository = "https://github.com/cosmic-utils/cosmic-ext-applet-external-monitor-brightness"
 
 [features]
-default = ["apple-studio-display", "brightness-sync-daemon"]
-apple-studio-display = ["dep:hidapi"]
+default = ["apple-hid-displays", "brightness-sync-daemon"]
+apple-hid-displays = ["dep:hidapi"]
 brightness-sync-daemon = ["dep:zbus", "dep:futures"]
 
 [dependencies]

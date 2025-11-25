@@ -2,23 +2,29 @@
 //! Brightness synchronization daemon
 //!
 //! This daemon listens to COSMIC's DisplayBrightness changes and
-//! applies them to Apple Studio Display via USB HID.
+//! applies them to displays using the Apple HID protocol via USB.
 //!
-//! Only activates when Apple HID displays are detected.
+//! Supports:
+//! - Apple Studio Display
+//! - Apple Pro Display XDR
+//! - LG UltraFine 4K
+//! - LG UltraFine 5K
+//!
+//! Only activates when Apple HID protocol displays are detected.
 
-#[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
 use anyhow::{Context, Result};
-#[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
 use std::sync::Arc;
-#[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
 use tokio::sync::Mutex;
-#[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
 use zbus::{proxy, Connection};
 
-#[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
 use crate::protocols::apple_hid::AppleHidDisplay;
 
-#[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
 /// COSMIC Settings Daemon D-Bus proxy
 #[proxy(
     interface = "com.system76.CosmicSettingsDaemon",
@@ -35,20 +41,20 @@ trait CosmicSettingsDaemon {
     fn max_display_brightness(&self) -> zbus::Result<i32>;
 }
 
-#[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
 pub struct BrightnessSyncDaemon {
     apple_displays: Arc<Mutex<Vec<AppleHidDisplay>>>,
 }
 
-#[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
 impl BrightnessSyncDaemon {
     /// Create a new brightness sync daemon
-    /// Returns None if no Apple displays are detected
+    /// Returns None if no Apple HID protocol displays are detected
     pub async fn new() -> Result<Option<Self>> {
-        // Enumerate Apple displays
+        // Enumerate Apple HID protocol displays (Apple and LG)
         let api = hidapi::HidApi::new().context("Failed to initialize HID API")?;
         let displays = AppleHidDisplay::enumerate(&api)
-            .context("Failed to enumerate Apple displays")?;
+            .context("Failed to enumerate Apple HID displays")?;
 
         if displays.is_empty() {
             tracing::info!("No Apple HID displays detected, brightness sync disabled");
@@ -159,7 +165,7 @@ impl BrightnessSyncDaemon {
 }
 
 /// Spawn the brightness sync daemon if Apple displays are detected
-#[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+#[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
 pub async fn spawn_if_needed() {
     match BrightnessSyncDaemon::new().await {
         Ok(Some(daemon)) => {
@@ -180,7 +186,7 @@ pub async fn spawn_if_needed() {
 }
 
 /// No-op when feature is disabled
-#[cfg(not(all(feature = "apple-studio-display", feature = "brightness-sync-daemon")))]
+#[cfg(not(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon")))]
 pub async fn spawn_if_needed() {
     // No-op
 }

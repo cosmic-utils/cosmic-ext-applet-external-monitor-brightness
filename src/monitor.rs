@@ -13,7 +13,7 @@ use tokio::sync::watch::Receiver;
 use crate::app::AppMsg;
 use crate::protocols::{ddc_ci::DdcCiDisplay, DisplayProtocol};
 
-#[cfg(feature = "apple-studio-display")]
+#[cfg(feature = "apple-hid-displays")]
 use crate::protocols::apple_hid::AppleHidDisplay;
 
 pub type DisplayId = String;
@@ -24,7 +24,7 @@ pub enum DisplayBackend {
     /// DDC/CI protocol (standard external monitors via I2C)
     DdcCi(DdcCiDisplay),
     /// Apple HID protocol (Apple Studio Display, LG UltraFine, etc.)
-    #[cfg(feature = "apple-studio-display")]
+    #[cfg(feature = "apple-hid-displays")]
     AppleHid(AppleHidDisplay),
 }
 
@@ -32,7 +32,7 @@ impl std::fmt::Debug for DisplayBackend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DisplayBackend::DdcCi(display) => write!(f, "{:?}", display),
-            #[cfg(feature = "apple-studio-display")]
+            #[cfg(feature = "apple-hid-displays")]
             DisplayBackend::AppleHid(display) => write!(f, "{:?}", display),
         }
     }
@@ -43,7 +43,7 @@ impl DisplayBackend {
     pub fn id(&self) -> String {
         match self {
             DisplayBackend::DdcCi(display) => display.id(),
-            #[cfg(feature = "apple-studio-display")]
+            #[cfg(feature = "apple-hid-displays")]
             DisplayBackend::AppleHid(display) => display.id(),
         }
     }
@@ -52,7 +52,7 @@ impl DisplayBackend {
     pub fn name(&self) -> String {
         match self {
             DisplayBackend::DdcCi(display) => display.name(),
-            #[cfg(feature = "apple-studio-display")]
+            #[cfg(feature = "apple-hid-displays")]
             DisplayBackend::AppleHid(display) => display.name(),
         }
     }
@@ -61,7 +61,7 @@ impl DisplayBackend {
     pub fn get_brightness(&mut self) -> anyhow::Result<u16> {
         match self {
             DisplayBackend::DdcCi(display) => display.get_brightness(),
-            #[cfg(feature = "apple-studio-display")]
+            #[cfg(feature = "apple-hid-displays")]
             DisplayBackend::AppleHid(display) => display.get_brightness(),
         }
     }
@@ -70,7 +70,7 @@ impl DisplayBackend {
     pub fn set_brightness(&mut self, value: u16) -> anyhow::Result<()> {
         match self {
             DisplayBackend::DdcCi(display) => display.set_brightness(value),
-            #[cfg(feature = "apple-studio-display")]
+            #[cfg(feature = "apple-hid-displays")]
             DisplayBackend::AppleHid(display) => display.set_brightness(value),
         }
     }
@@ -150,7 +150,7 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                     }
 
                     // Enumerate Apple HID displays
-                    #[cfg(feature = "apple-studio-display")]
+                    #[cfg(feature = "apple-hid-displays")]
                     {
                         match hidapi::HidApi::new() {
                             Ok(api) => {

@@ -1,0 +1,2 @@
+# Allow users in the i2c group to access I2C devices
+KERNEL=="i2c-[0-9]*", GROUP="i2c", MODE="0660"

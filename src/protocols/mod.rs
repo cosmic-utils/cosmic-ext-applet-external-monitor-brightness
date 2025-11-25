@@ -7,7 +7,7 @@
 
 pub mod ddc_ci;
 
-#[cfg(feature = "apple-studio-display")]
+#[cfg(feature = "apple-hid-displays")]
 pub mod apple_hid;
 
 use anyhow::Result;

@@ -239,11 +239,11 @@ impl cosmic::Application for AppState {
             last_quit: None,
         };
 
-        // Spawn brightness sync daemon if Apple displays are detected
-        #[cfg(all(feature = "apple-studio-display", feature = "brightness-sync-daemon"))]
+        // Spawn brightness sync daemon if Apple HID displays are detected
+        #[cfg(all(feature = "apple-hid-displays", feature = "brightness-sync-daemon"))]
         {
             tokio::spawn(async {
-                crate::brightness_sync_daemon::spawn_if_needed().await;
+                crate::daemon::spawn_if_needed().await;
             });
         }
 
