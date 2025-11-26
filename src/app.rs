@@ -182,6 +182,7 @@ pub enum AppMsg {
     /// Send from the subscription
     BrightnessWasUpdated(DisplayId, ScreenBrightness),
     Refresh,
+    RefreshMonitors,
     /// No operation message (for daemon spawn task)
     Noop,
 }
@@ -375,7 +376,12 @@ impl cosmic::Application for AppState {
             }
             AppMsg::ConfigChanged(config) => self.config = config,
             AppMsg::Refresh => {
+                // Refresh brightness values from monitors
                 self.send(EventToSub::Refresh);
+            }
+            AppMsg::RefreshMonitors => {
+                // Trigger re-enumeration of displays (hotplug detection)
+                self.send(EventToSub::ReEnumerate);
             }
             AppMsg::Noop => {
                 // No operation - used for daemon spawn task completion

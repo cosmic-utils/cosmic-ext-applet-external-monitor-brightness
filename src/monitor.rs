@@ -86,20 +86,22 @@ pub struct MonitorInfo {
 pub enum EventToSub {
     Refresh,
     Set(DisplayId, ScreenBrightness),
+    ReEnumerate,
 }
 
 enum State {
     Waiting,
-    Fetch,
+    Fetch(Option<tokio::sync::watch::Sender<EventToSub>>),
     Ready(
         HashMap<DisplayId, Arc<Mutex<DisplayBackend>>>,
+        tokio::sync::watch::Sender<EventToSub>,
         Receiver<EventToSub>,
     ),
 }
 
 pub fn sub() -> impl Stream<Item = AppMsg> {
     stream::channel(100, |mut output| async move {
-        let mut state = State::Fetch; // Start immediately, no waiting
+        let mut state = State::Fetch(None); // Start immediately, no waiting
         let mut failed_attempts = 0;
 
         loop {
@@ -107,9 +109,9 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                 State::Waiting => {
                     // Only wait 100ms between retries, no exponential backoff
                     tokio::time::sleep(Duration::from_millis(100)).await;
-                    state = State::Fetch;
+                    state = State::Fetch(None);
                 }
-                State::Fetch => {
+                State::Fetch(existing_sender) => {
                     let mut res = HashMap::new();
 
                     let mut displays = HashMap::new();
@@ -234,16 +236,24 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
 
                     debug!("end enumerate");
 
-                    let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
-                    rx.mark_unchanged();
+                    let (tx, mut rx) = if let Some(sender) = existing_sender.take() {
+                        // Reuse existing sender for re-enumeration
+                        let rx = sender.subscribe();
+                        (sender, rx)
+                    } else {
+                        // Create new channel for initial enumeration
+                        let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
+                        rx.mark_unchanged();
+                        (tx, rx)
+                    };
 
                     output
-                        .send(AppMsg::SubscriptionReady((res, tx)))
+                        .send(AppMsg::SubscriptionReady((res, tx.clone())))
                         .await
                         .unwrap();
-                    state = State::Ready(displays, rx);
+                    state = State::Ready(displays, tx, rx);
                 }
-                State::Ready(displays, rx) => {
+                State::Ready(displays, tx, rx) => {
                     rx.changed().await.unwrap();
 
                     let last = rx.borrow_and_update().clone();
@@ -285,6 +295,11 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
 
                             j.await.unwrap();
                             tokio::time::sleep(Duration::from_millis(50)).await;
+                        }
+                        EventToSub::ReEnumerate => {
+                            // Transition back to Fetch state with existing sender
+                            // This will re-enumerate displays while keeping the same channel
+                            state = State::Fetch(Some(tx.clone()));
                         }
                     }
                 }
