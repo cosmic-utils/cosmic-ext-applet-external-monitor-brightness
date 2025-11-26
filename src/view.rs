@@ -51,20 +51,22 @@ impl AppState {
     pub fn popup_view(&self) -> Element<AppMsg> {
         column()
             .padding(10)
-            .push(
-                row()
-                    .push(horizontal_space())
-                    .push(
-                        button::icon(icon::from_name("view-refresh-symbolic"))
-                            .on_press(AppMsg::RefreshMonitors)
-                    )
-            )
-            .push(padded_control(divider::horizontal::default()))
             .push_maybe(self.monitors_view())
             .push_maybe(
                 (!self.monitors.is_empty()).then(|| padded_control(divider::horizontal::default())),
             )
             .push(self.dark_mode_view())
+            .push(padded_control(divider::horizontal::default()))
+            .push(padded_control(
+                row()
+                    .align_y(Alignment::Center)
+                    .push(text(fl!("refresh_monitors")))
+                    .push(horizontal_space())
+                    .push(
+                        button::icon(icon::from_name("view-refresh-symbolic"))
+                            .on_press(AppMsg::RefreshMonitors)
+                    )
+            ))
             .into()
     }
 

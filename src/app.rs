@@ -111,8 +111,6 @@ impl AppState {
 
         match kind {
             PopupKind::Popup => {
-                self.send(EventToSub::Refresh);
-
                 let mut popup_settings = self.core.applet.get_popup_settings(
                     self.core.main_window_id().unwrap(),
                     new_id,
@@ -126,6 +124,9 @@ impl AppState {
                     .max_width(400.0)
                     .min_height(200.0)
                     .max_height(500.0);
+
+                // Don't trigger re-enumeration on popup open - makes it feel slow
+                // User can click refresh button if needed for hotplug detection
                 get_popup(popup_settings)
             }
             PopupKind::QuickSettings => {
