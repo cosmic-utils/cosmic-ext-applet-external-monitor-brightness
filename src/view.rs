@@ -53,6 +53,31 @@ impl AppState {
             .padding(10)
             .push_maybe(self.monitors_view())
             .push_maybe(
+                self.monitors.is_empty().then(|| {
+                    container(
+                        column()
+                            .spacing(12)
+                            .align_x(Alignment::Center)
+                            .push(
+                                icon::from_name("video-display-symbolic")
+                                    .size(64)
+                                    .symbolic(true)
+                            )
+                            .push(
+                                text(fl!("no_displays"))
+                                    .size(14)
+                            )
+                            .push(
+                                text(fl!("no_displays_hint"))
+                                    .size(12)
+                            )
+                    )
+                    .width(Length::Fill)
+                    .center_x(Length::Fill)
+                    .padding([40, 20])
+                })
+            )
+            .push_maybe(
                 (!self.monitors.is_empty()).then(|| padded_control(divider::horizontal::default())),
             )
             .push(self.dark_mode_view())
