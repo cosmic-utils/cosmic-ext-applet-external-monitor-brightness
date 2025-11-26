@@ -72,11 +72,14 @@ impl AppState {
 
     fn monitors_view(&self) -> Option<Element<AppMsg>> {
         (!self.monitors.is_empty()).then(|| {
+            let mut monitors: Vec<_> = self.monitors.iter().collect();
+            monitors.sort_by_key(|(id, _)| *id);
+
             column()
                 .padding(8)
                 .extend(
-                    self.monitors
-                        .iter()
+                    monitors
+                        .into_iter()
                         .map(|(id, monitor)| self.monitor_view(id, monitor)),
                 )
                 .into()
