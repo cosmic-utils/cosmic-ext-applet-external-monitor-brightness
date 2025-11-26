@@ -126,37 +126,40 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
 
                     for display in ddc_displays {
                         let task = tokio::spawn(async move {
-                            let mut backend = DisplayBackend::DdcCi(display);
+                            // Run blocking I/O operations in spawn_blocking to avoid blocking the runtime
+                            tokio::task::spawn_blocking(move || {
+                                let mut backend = DisplayBackend::DdcCi(display);
 
-                            // Wake up DDC by doing a read-write cycle
-                            // Some DDC monitors need an initial write to establish I2C communication
-                            if let Ok(current_brightness) = backend.get_brightness() {
-                                let _ = backend.set_brightness(current_brightness);
-                                // Small delay to let DDC settle
-                                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-                            }
-
-                            let brightness = match backend.get_brightness() {
-                                Ok(v) => v,
-                                // on my machine, i get this error when starting the session
-                                // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
-                                // This go away after the third attempt
-                                Err(e) => {
-                                    error!("can't get_vcp_feature: {e}");
-                                    return Err(e);
+                                // Wake up DDC by doing a read-write cycle
+                                // Some DDC monitors need an initial write to establish I2C communication
+                                if let Ok(current_brightness) = backend.get_brightness() {
+                                    let _ = backend.set_brightness(current_brightness);
+                                    // Small delay to let DDC settle
+                                    std::thread::sleep(std::time::Duration::from_millis(50));
                                 }
-                            };
-                            debug_assert!(brightness <= 100);
 
-                            let id = backend.id();
-                            let name = backend.name();
+                                let brightness = match backend.get_brightness() {
+                                    Ok(v) => v,
+                                    // on my machine, i get this error when starting the session
+                                    // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
+                                    // This go away after the third attempt
+                                    Err(e) => {
+                                        error!("can't get_vcp_feature: {e}");
+                                        return Err(e);
+                                    }
+                                };
+                                debug_assert!(brightness <= 100);
 
-                            let mon = MonitorInfo {
-                                name,
-                                brightness,
-                            };
+                                let id = backend.id();
+                                let name = backend.name();
 
-                            Ok((id, mon, backend))
+                                let mon = MonitorInfo {
+                                    name,
+                                    brightness,
+                                };
+
+                                Ok((id, mon, backend))
+                            }).await.unwrap()
                         });
                         ddc_tasks.push(task);
                     }
@@ -181,42 +184,50 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                     // Enumerate Apple HID displays
                     #[cfg(feature = "apple-hid-displays")]
                     {
-                        match hidapi::HidApi::new() {
-                            Ok(api) => {
-                                match AppleHidDisplay::enumerate(&api) {
-                                    Ok(apple_displays) => {
-                                        for display in apple_displays {
-                                            let mut backend = DisplayBackend::AppleHid(display);
+                        // Run Apple HID enumeration in spawn_blocking to avoid blocking the runtime
+                        let apple_result = tokio::task::spawn_blocking(|| {
+                            let mut results = Vec::new();
+                            match hidapi::HidApi::new() {
+                                Ok(api) => {
+                                    match AppleHidDisplay::enumerate(&api) {
+                                        Ok(apple_displays) => {
+                                            for display in apple_displays {
+                                                let mut backend = DisplayBackend::AppleHid(display);
 
-                                            let brightness = match backend.get_brightness() {
-                                                Ok(v) => v,
-                                                Err(e) => {
-                                                    error!("can't get Apple HID display brightness: {e}");
-                                                    some_failed = true;
-                                                    continue;
-                                                }
-                                            };
+                                                let brightness = match backend.get_brightness() {
+                                                    Ok(v) => v,
+                                                    Err(e) => {
+                                                        error!("can't get Apple HID display brightness: {e}");
+                                                        continue;
+                                                    }
+                                                };
 
-                                            let id = backend.id();
-                                            let name = backend.name();
+                                                let id = backend.id();
+                                                let name = backend.name();
 
-                                            let mon = MonitorInfo {
-                                                name,
-                                                brightness,
-                                            };
+                                                let mon = MonitorInfo {
+                                                    name,
+                                                    brightness,
+                                                };
 
-                                            res.insert(id.clone(), mon);
-                                            displays.insert(id, Arc::new(Mutex::new(backend)));
+                                                results.push((id, mon, backend));
+                                            }
+                                        }
+                                        Err(e) => {
+                                            error!("Failed to enumerate Apple HID displays: {e}");
                                         }
                                     }
-                                    Err(e) => {
-                                        error!("Failed to enumerate Apple HID displays: {e}");
-                                    }
+                                }
+                                Err(e) => {
+                                    error!("Failed to initialize HID API: {e}");
                                 }
                             }
-                            Err(e) => {
-                                error!("Failed to initialize HID API: {e}");
-                            }
+                            results
+                        }).await.unwrap();
+
+                        for (id, mon, backend) in apple_result {
+                            res.insert(id.clone(), mon);
+                            displays.insert(id, Arc::new(Mutex::new(backend)));
                         }
                     }
 
