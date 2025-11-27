@@ -1,9 +1,11 @@
 [Desktop Entry]
 Name=External Monitor Brightness
+Name[cs]=Jas externího monitoru
 Name[fr]=Luminosité de moniteur externe
 Name[hu]=Külső Monitor Fényerőszabályzó
 
 Comment=Change brightness of external monitors via DDC/CI protocol
+Comment[cs]=Měňte jas externích monitorů skrze protokol DDC/CI
 Comment[fr]=Modifier la luminosité des moniteurs externes via le protocole DDC/CI
 Comment[hu]=Külső monitorok fényerejének szabályozása a DDC/CI protokollon keresztül
 
