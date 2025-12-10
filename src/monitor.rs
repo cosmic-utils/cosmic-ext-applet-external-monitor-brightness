@@ -135,7 +135,7 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                         }
                         EventToSub::Set(id, value) => {
                             debug_assert!(value <= 100);
-                            let display = displays.get_mut(&id).unwrap().clone();
+                            let display = Arc::clone(displays.get_mut(&id).unwrap());
 
                             let j = tokio::task::spawn_blocking(move || {
                                 if let Err(err) = display
