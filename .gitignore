@@ -5,3 +5,5 @@
 /repo
 /flatpak-out
 /flatpak-repo
+
+.DS_Store
