@@ -194,15 +194,15 @@ impl AppState {
         }
     }
 
-    fn update_monitor_config(&mut self, id: &str, f: impl Fn(&mut MonitorConfig)) {
-        let mut monitors = self.config.monitors.clone();
+    fn update_monitor_config(&mut self, id: String, f: impl Fn(&mut MonitorConfig)) {
+        let mut monitors = std::mem::take(&mut self.config.monitors);
 
-        if let Some(monitor) = monitors.get_mut(id) {
+        if let Some(monitor) = monitors.get_mut(&id) {
             f(monitor);
         } else {
             let mut monitor = MonitorConfig::new();
             f(&mut monitor);
-            monitors.insert(id.to_string(), monitor);
+            monitors.insert(id, monitor);
         }
 
         if let Err(e) = self.config.set_monitors(&self.config_handler, monitors) {
@@ -330,14 +330,12 @@ impl cosmic::Application for AppState {
                 self.monitors = monitors
                     .into_iter()
                     .map(|(id, m)| {
+                        let gamma_map = self.config.get_gamma_map(&id);
                         (
-                            id.clone(),
+                            id,
                             MonitorState {
                                 name: m.name,
-                                slider_brightness: get_slider_brightness(
-                                    m.brightness,
-                                    self.config.get_gamma_map(&id),
-                                ),
+                                slider_brightness: get_slider_brightness(m.brightness, gamma_map),
                                 settings_expanded: false,
                             },
                         )
@@ -357,7 +355,7 @@ impl cosmic::Application for AppState {
                     self.send(EventToSub::Set(id.clone(), b));
                 }
 
-                self.update_monitor_config(&id, |monitor| {
+                self.update_monitor_config(id, |monitor| {
                     monitor.gamma_map = gamma;
                 });
             }
