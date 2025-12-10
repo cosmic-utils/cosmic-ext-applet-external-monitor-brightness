@@ -12,7 +12,7 @@ use cosmic::widget::{
 };
 
 impl AppState {
-    pub fn applet_button_view(&self) -> Element<AppMsg> {
+    pub fn applet_button_view(&self) -> Element<'_, AppMsg> {
         mouse_area(
             self.core
                 .applet
@@ -36,7 +36,7 @@ impl AppState {
         .into()
     }
 
-    pub fn quick_settings_view(&self) -> Element<AppMsg> {
+    pub fn quick_settings_view(&self) -> Element<'_, AppMsg> {
         #[allow(dead_code)]
         fn toggle_settings<'a>(
             info: impl Into<Cow<'a, str>> + 'a,
@@ -58,7 +58,7 @@ impl AppState {
             .into()
     }
 
-    pub fn popup_view(&self) -> Element<AppMsg> {
+    pub fn popup_view(&self) -> Element<'_, AppMsg> {
         column()
             .padding(10)
             .push_maybe(self.monitors_view())
@@ -69,7 +69,7 @@ impl AppState {
             .into()
     }
 
-    fn monitors_view(&self) -> Option<Element<AppMsg>> {
+    fn monitors_view(&self) -> Option<Element<'_, AppMsg>> {
         (!self.monitors.is_empty()).then(|| {
             column()
                 .padding(8)
@@ -245,7 +245,7 @@ impl AppState {
     //         .into()
     // }
 
-    fn dark_mode_view(&self) -> Element<AppMsg> {
+    fn dark_mode_view(&self) -> Element<'_, AppMsg> {
         padded_control(
             mouse_area(
                 row()
