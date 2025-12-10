@@ -197,13 +197,8 @@ impl AppState {
     fn update_monitor_config(&mut self, id: String, f: impl Fn(&mut MonitorConfig)) {
         let mut monitors = std::mem::take(&mut self.config.monitors);
 
-        if let Some(monitor) = monitors.get_mut(&id) {
-            f(monitor);
-        } else {
-            let mut monitor = MonitorConfig::new();
-            f(&mut monitor);
-            monitors.insert(id, monitor);
-        }
+        let monitor = monitors.entry(id).or_insert(MonitorConfig::new());
+        f(monitor);
 
         if let Err(e) = self.config.set_monitors(&self.config_handler, monitors) {
             error!("can't write config: {e}");
