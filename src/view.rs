@@ -4,11 +4,10 @@ use crate::app::{AppMsg, AppState, MonitorState};
 use crate::fl;
 use crate::icon::{icon_high, icon_low, icon_medium, icon_off};
 use cosmic::Element;
-use cosmic::applet::padded_control;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{
-    button, column, container, divider, horizontal_space, icon, mouse_area, row, slider, text,
-    toggler, tooltip,
+    button, column, container, horizontal_space, icon, mouse_area, row, slider, text, toggler,
+    tooltip,
 };
 
 impl AppState {
@@ -59,18 +58,13 @@ impl AppState {
     }
 
     pub fn popup_view(&self) -> Element<AppMsg> {
-        column()
-            .padding(10)
-            .push_maybe(self.monitors_view())
-            .push_maybe(
-                (!self.monitors.is_empty()).then(|| padded_control(divider::horizontal::default())),
-            )
-            .push(self.dark_mode_view())
-            .into()
+        column().padding(10).push(self.monitors_view()).into()
     }
 
-    fn monitors_view(&self) -> Option<Element<AppMsg>> {
-        (!self.monitors.is_empty()).then(|| {
+    fn monitors_view(&self) -> Element<AppMsg> {
+        if self.monitors.is_empty() {
+            column().push(text(fl!("no_monitor"))).into()
+        } else {
             column()
                 .padding(8)
                 .extend(
@@ -79,7 +73,7 @@ impl AppState {
                         .map(|(id, monitor)| self.monitor_view(id, monitor)),
                 )
                 .into()
-        })
+        }
     }
 
     fn monitor_view<'a>(&self, id: &'a str, monitor: &'a MonitorState) -> Element<'a, AppMsg> {
@@ -244,20 +238,6 @@ impl AppState {
     //         }))
     //         .into()
     // }
-
-    fn dark_mode_view(&self) -> Element<AppMsg> {
-        padded_control(
-            mouse_area(
-                row()
-                    .align_y(Alignment::Center)
-                    .push(text(fl!("dark_mode")))
-                    .push(horizontal_space())
-                    .push(toggler(self.theme_mode_config.is_dark).on_toggle(AppMsg::SetDarkMode)),
-            )
-            .on_press(AppMsg::SetDarkMode(!self.theme_mode_config.is_dark)),
-        )
-        .into()
-    }
 }
 
 fn brightness_icon(brightness: f32) -> icon::Handle {
