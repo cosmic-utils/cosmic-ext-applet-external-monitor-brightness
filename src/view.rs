@@ -84,7 +84,7 @@ impl AppState {
 
     fn monitor_view<'a>(&self, id: &'a str, monitor: &'a MonitorState) -> Element<'a, AppMsg> {
         let gamma_map = self.config.get_gamma_map(id);
-
+        println!("{:?}", &monitor.name);
         row()
             .padding(2.0)
             .push(
@@ -135,6 +135,7 @@ impl AppState {
                         row()
                             .spacing(12)
                             .align_y(Alignment::Center)
+                            .push(text(monitor.name.chars().take(12).collect::<String>()))
                             .push(slider(
                                 0..=100,
                                 (monitor.slider_brightness * 100.0) as u16,
