@@ -84,7 +84,7 @@ impl AppState {
 
     fn monitor_view<'a>(&self, id: &'a str, monitor: &'a MonitorState) -> Element<'a, AppMsg> {
         let gamma_map = self.config.get_gamma_map(id);
-        println!("{:?}", &monitor.name);
+
         row()
             .padding(2.0)
             .push(
