@@ -135,6 +135,7 @@ impl AppState {
                         row()
                             .spacing(12)
                             .align_y(Alignment::Center)
+                            .push(text(monitor.name.chars().take(12).collect::<String>()))
                             .push(slider(
                                 0..=100,
                                 (monitor.slider_brightness * 100.0) as u16,
