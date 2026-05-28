@@ -40,120 +40,123 @@ enum State {
 }
 
 pub fn sub() -> impl Stream<Item = AppMsg> {
-    stream::channel(100, |mut output| async move {
-        let mut state = State::Waiting;
-        let mut failed_attempts = 0;
+    stream::channel(
+        100,
+        |mut output: cosmic::iced::futures::channel::mpsc::Sender<AppMsg>| async move {
+            let mut state = State::Waiting;
+            let mut failed_attempts = 0;
 
-        let mut duration = Duration::from_millis(50);
+            let mut duration = Duration::from_millis(50);
 
-        loop {
-            match &mut state {
-                State::Waiting => {
-                    tokio::time::sleep(duration).await;
-                    duration *= 2;
-                    state = State::Fetch;
-                }
-                State::Fetch => {
-                    let mut res = HashMap::new();
-
-                    let mut displays = HashMap::new();
-
-                    debug!("start enumerate");
-
-                    let mut some_failed = false;
-                    for mut display in Display::enumerate() {
-                        let brightness = match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
-                            Ok(v) => v.value(),
-                            // on my machine, i get this error when starting the session
-                            // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
-                            // This go away after the third attempt
-                            Err(e) => {
-                                error!("can't get_vcp_feature: {e}");
-                                some_failed = true;
-                                continue;
-                            }
-                        };
-                        debug_assert!(brightness <= 100);
-
-                        let mon = MonitorInfo {
-                            name: display.info.model_name.clone().unwrap_or_default(),
-                            brightness,
-                        };
-
-                        res.insert(display.info.id.clone(), mon);
-                        displays.insert(display.info.id.clone(), Arc::new(Mutex::new(display)));
+            loop {
+                match &mut state {
+                    State::Waiting => {
+                        tokio::time::sleep(duration).await;
+                        duration *= 2;
+                        state = State::Fetch;
                     }
+                    State::Fetch => {
+                        let mut res = HashMap::new();
 
-                    if some_failed {
-                        failed_attempts += 1;
-                    }
+                        let mut displays = HashMap::new();
 
-                    // On some monitors this error is permanent
-                    // So we mark the app as ready if at least one monitor is loaded after 5 attempts
-                    if some_failed && failed_attempts < 5 {
-                        state = State::Waiting;
-                        continue;
-                    }
+                        debug!("start enumerate");
 
-                    debug!("end enumerate");
-
-                    let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
-                    rx.mark_unchanged();
-
-                    output
-                        .send(AppMsg::SubscriptionReady((res, tx)))
-                        .await
-                        .unwrap();
-                    state = State::Ready(displays, rx);
-                }
-                State::Ready(displays, rx) => {
-                    rx.changed().await.unwrap();
-
-                    let last = rx.borrow_and_update().clone();
-                    match last {
-                        EventToSub::Refresh => {
-                            for (id, display) in displays {
-                                let res = display
-                                    .lock()
-                                    .unwrap()
-                                    .handle
-                                    .get_vcp_feature(BRIGHTNESS_CODE);
-
-                                match res {
-                                    Ok(value) => {
-                                        output
-                                            .send(AppMsg::BrightnessWasUpdated(
-                                                id.clone(),
-                                                value.value(),
-                                            ))
-                                            .await
-                                            .unwrap();
-                                    }
-                                    Err(err) => error!("{:?}", err),
+                        let mut some_failed = false;
+                        for mut display in Display::enumerate() {
+                            let brightness = match display.handle.get_vcp_feature(BRIGHTNESS_CODE) {
+                                Ok(v) => v.value(),
+                                // on my machine, i get this error when starting the session
+                                // can't get_vcp_feature: DDC/CI error: Expected DDC/CI length bit
+                                // This go away after the third attempt
+                                Err(e) => {
+                                    error!("can't get_vcp_feature: {e}");
+                                    some_failed = true;
+                                    continue;
                                 }
-                            }
+                            };
+                            debug_assert!(brightness <= 100);
+
+                            let mon = MonitorInfo {
+                                name: display.info.model_name.clone().unwrap_or_default(),
+                                brightness,
+                            };
+
+                            res.insert(display.info.id.clone(), mon);
+                            displays.insert(display.info.id.clone(), Arc::new(Mutex::new(display)));
                         }
-                        EventToSub::Set(id, value) => {
-                            debug_assert!(value <= 100);
-                            let display = Arc::clone(displays.get_mut(&id).unwrap());
 
-                            let j = tokio::task::spawn_blocking(move || {
-                                if let Err(err) = display
-                                    .lock()
-                                    .unwrap()
-                                    .handle
-                                    .set_vcp_feature(BRIGHTNESS_CODE, value)
-                                {
-                                    error!("{:?}", err);
+                        if some_failed {
+                            failed_attempts += 1;
+                        }
+
+                        // On some monitors this error is permanent
+                        // So we mark the app as ready if at least one monitor is loaded after 5 attempts
+                        if some_failed && failed_attempts < 5 {
+                            state = State::Waiting;
+                            continue;
+                        }
+
+                        debug!("end enumerate");
+
+                        let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
+                        rx.mark_unchanged();
+
+                        output
+                            .send(AppMsg::SubscriptionReady((res, tx)))
+                            .await
+                            .unwrap();
+                        state = State::Ready(displays, rx);
+                    }
+                    State::Ready(displays, rx) => {
+                        rx.changed().await.unwrap();
+
+                        let last = rx.borrow_and_update().clone();
+                        match last {
+                            EventToSub::Refresh => {
+                                for (id, display) in displays {
+                                    let res = display
+                                        .lock()
+                                        .unwrap()
+                                        .handle
+                                        .get_vcp_feature(BRIGHTNESS_CODE);
+
+                                    match res {
+                                        Ok(value) => {
+                                            output
+                                                .send(AppMsg::BrightnessWasUpdated(
+                                                    id.clone(),
+                                                    value.value(),
+                                                ))
+                                                .await
+                                                .unwrap();
+                                        }
+                                        Err(err) => error!("{:?}", err),
+                                    }
                                 }
-                            });
+                            }
+                            EventToSub::Set(id, value) => {
+                                debug_assert!(value <= 100);
+                                let display = Arc::clone(displays.get_mut(&id).unwrap());
 
-                            j.await.unwrap();
-                            tokio::time::sleep(Duration::from_millis(50)).await;
+                                let j = tokio::task::spawn_blocking(move || {
+                                    if let Err(err) = display
+                                        .lock()
+                                        .unwrap()
+                                        .handle
+                                        .set_vcp_feature(BRIGHTNESS_CODE, value)
+                                    {
+                                        error!("{:?}", err);
+                                    }
+                                });
+
+                                j.await.unwrap();
+                                tokio::time::sleep(Duration::from_millis(50)).await;
+                            }
                         }
                     }
                 }
             }
-        }
-    })
+        },
+    )
 }
