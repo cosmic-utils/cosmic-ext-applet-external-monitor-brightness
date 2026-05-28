@@ -7,7 +7,7 @@ use cosmic::Element;
 use cosmic::applet::padded_control;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{
-    button, column, container, divider, horizontal_space, icon, mouse_area, row, slider, text,
+    button, column, container, divider, icon, mouse_area, row, slider, space::horizontal, text,
     toggler, tooltip,
 };
 
@@ -43,14 +43,14 @@ impl AppState {
             value: bool,
             f: impl Fn(bool) -> AppMsg + 'a,
         ) -> Element<'a, AppMsg> {
-            row()
+            row::with_capacity(3)
                 .push(text(info))
-                .push(horizontal_space())
+                .push(horizontal())
                 .push(toggler(value).on_toggle(f))
                 .into()
         }
 
-        column()
+        column::with_capacity(1)
             .width(Length::Fill)
             .spacing(20)
             .padding(10)
@@ -59,7 +59,7 @@ impl AppState {
     }
 
     pub fn popup_view(&self) -> Element<'_, AppMsg> {
-        column()
+        column::with_capacity(3)
             .padding(10)
             .push_maybe(self.monitors_view())
             .push_maybe(
@@ -71,7 +71,7 @@ impl AppState {
 
     fn monitors_view(&self) -> Option<Element<'_, AppMsg>> {
         (!self.monitors.is_empty()).then(|| {
-            column()
+            column::with_capacity(2)
                 .padding(8)
                 .extend(
                     self.monitors
@@ -85,12 +85,12 @@ impl AppState {
     fn monitor_view<'a>(&self, id: &'a str, monitor: &'a MonitorState) -> Element<'a, AppMsg> {
         let gamma_map = self.config.get_gamma_map(id);
 
-        row()
+        row::with_capacity(2)
             .padding(2.0)
             .push(
                 container(
                     mouse_area(
-                        column()
+                        column::with_capacity(2)
                             .spacing(8.0)
                             .padding(4.0)
                             .push(tooltip(
@@ -128,11 +128,11 @@ impl AppState {
                 }),
             )
             .push(
-                column()
+                column::with_capacity(2)
                     .spacing(8.0)
                     .padding(4.0)
                     .push(
-                        row()
+                        row::with_capacity(2)
                             .spacing(12)
                             .align_y(Alignment::Center)
                             .push(slider(
@@ -152,7 +152,7 @@ impl AppState {
                             ),
                     )
                     .push_maybe(monitor.settings_expanded.then(|| {
-                        row()
+                        row::with_capacity(2)
                             .spacing(12)
                             .align_y(Alignment::Center)
                             .push(slider(
@@ -175,9 +175,9 @@ impl AppState {
     // fn monitor_view2<'a>(&self, id: &'a str, monitor: &'a MonitorState) -> Element<'a, AppMessage> {
     //     let gamma_map = self.config.get_gamma_map(id);
 
-    //     column()
+    //     column::with_capacity(1)
     //         .push(
-    //             row()
+    //             row::with_capacity(1)
     //                 .spacing(10)
     //                 .align_y(Alignment::Center)
     //                 .push(
@@ -216,8 +216,8 @@ impl AppState {
     //                 ),
     //         )
     //         .push_maybe(monitor.settings_expanded.then(|| {
-    //             column().push(
-    //                 row()
+    //             column::with_capacity(1).push(
+    //                 row::with_capacity(1)
     //                     .padding(10)
     //                     .spacing(12)
     //                     .align_y(Alignment::Center)
@@ -248,10 +248,10 @@ impl AppState {
     fn dark_mode_view(&self) -> Element<'_, AppMsg> {
         padded_control(
             mouse_area(
-                row()
+                row::with_capacity(3)
                     .align_y(Alignment::Center)
                     .push(text(fl!("dark_mode")))
-                    .push(horizontal_space())
+                    .push(horizontal())
                     .push(toggler(self.theme_mode_config.is_dark).on_toggle(AppMsg::SetDarkMode)),
             )
             .on_press(AppMsg::SetDarkMode(!self.theme_mode_config.is_dark)),

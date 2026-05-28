@@ -5,16 +5,16 @@ use crate::config::{self, Config, MonitorConfig};
 use crate::monitor;
 use crate::monitor::{DisplayId, EventToSub, MonitorInfo, ScreenBrightness};
 use anyhow::anyhow;
+use cosmic::Element;
 use cosmic::app::{Core, Task};
 use cosmic::cosmic_config::Config as CosmicConfig;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{THEME_MODE_ID, ThemeMode};
+use cosmic::iced::core::window;
+use cosmic::iced::platform_specific::shell::commands::popup::{destroy_popup, get_popup};
 use cosmic::iced::window::Id;
 use cosmic::iced::{Limits, Subscription};
-use cosmic::iced_runtime::core::window;
-use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
 use cosmic::widget::Space;
-use cosmic::{Element, iced_runtime};
 use tokio::sync::watch::Sender;
 
 pub const APPID: &str = "io.github.cosmic_utils.cosmic-ext-applet-external-monitor-brightness";
@@ -373,7 +373,7 @@ impl cosmic::Application for AppState {
 
     fn view_window(&self, _id: Id) -> Element<'_, Self::Message> {
         let Some(popup) = &self.popup else {
-            return Space::new(0, 0).into();
+            return Space::new().into();
         };
 
         let view = match &popup.kind {
@@ -384,7 +384,7 @@ impl cosmic::Application for AppState {
         self.core.applet.popup_container(view).into()
     }
 
-    fn style(&self) -> Option<iced_runtime::Appearance> {
+    fn style(&self) -> Option<cosmic::iced::theme::Style> {
         Some(cosmic::applet::style())
     }
 
