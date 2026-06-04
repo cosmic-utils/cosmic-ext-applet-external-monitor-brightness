@@ -90,8 +90,7 @@ flatpak-install-sdk:
     flatpak install --noninteractive --user flathub \
         org.freedesktop.Platform//{{ sdk-version }} \
         org.freedesktop.Sdk//{{ sdk-version }} \
-        org.freedesktop.Sdk.Extension.rust-stable//{{ sdk-version }} \
-        org.freedesktop.Sdk.Extension.llvm18//{{ sdk-version }}
+        org.freedesktop.Sdk.Extension.rust-stable//{{ sdk-version }}
 
 repo-name := "flatpak-repo"
 branch-name := 'update-' + name
