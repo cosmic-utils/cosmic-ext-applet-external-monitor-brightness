@@ -238,11 +238,10 @@ impl cosmic::Application for AppState {
     fn on_close_requested(&self, id: window::Id) -> Option<AppMsg> {
         info!("on_close_requested");
 
-        if let Some(popup) = &self.popup {
-            if popup.id == id {
+        if let Some(popup) = &self.popup
+            && popup.id == id {
                 return Some(AppMsg::ClosePopup);
             }
-        }
         None
     }
 
