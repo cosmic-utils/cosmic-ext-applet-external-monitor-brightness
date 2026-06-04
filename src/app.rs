@@ -239,9 +239,10 @@ impl cosmic::Application for AppState {
         info!("on_close_requested");
 
         if let Some(popup) = &self.popup
-            && popup.id == id {
-                return Some(AppMsg::ClosePopup);
-            }
+            && popup.id == id
+        {
+            return Some(AppMsg::ClosePopup);
+        }
         None
     }
 
