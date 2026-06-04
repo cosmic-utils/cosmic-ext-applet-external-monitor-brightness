@@ -38,6 +38,16 @@ fn setup_logs() {
 }
 
 fn main() -> cosmic::iced::Result {
+    for arg in std::env::args().skip(1) {
+        if arg == "-V" || arg == "--version" {
+            let version = env!("CARGO_PKG_VERSION");
+            let commit = option_env!("EXTERNAL_MONITOR_BRIGHTNESS_COMMIT").unwrap_or("unknown");
+
+            println!("external-monitor-brightness {version} (commit {commit})");
+            return Ok(());
+        }
+    }
+
     setup_logs();
     localize();
 

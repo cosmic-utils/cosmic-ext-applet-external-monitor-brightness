@@ -1,0 +1,1 @@
+Please briefly explain the purpose of this PR. Also, make sure you have read the [contributing guide](https://github.com/cosmic-utils/clipboard-manager/blob/master/CONTRIBUTING.md) before submitting it.

@@ -23,12 +23,12 @@ anyhow = "1"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"
-# rev = "a85b3693994ef2b8275eca6a9eccc86a2d7e9f86"
+rev = "f0f68933f1552857e2165fc0fa953228107bddef"
 default-features = false
 features = ["applet", "tokio", "wayland"]
 
-[patch."https://github.com/smithay/client-toolkit.git"]
-sctk = { package = "smithay-client-toolkit", version = "=0.19.2" }
+# [patch."https://github.com/smithay/client-toolkit.git"]
+# sctk = { package = "smithay-client-toolkit", version = "=0.19.2" }
 
 # [patch."https://github.com/pop-os/libcosmic"]
 # libcosmic = { path = "../libcosmic"}

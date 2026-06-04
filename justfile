@@ -1,3 +1,4 @@
+export EXTERNAL_MONITOR_BRIGHTNESS_COMMIT := `git rev-parse --short HEAD`
 rootdir := ''
 prefix := '/usr'
 debug := '0'
