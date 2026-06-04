@@ -68,7 +68,9 @@ runf:
 uninstallf:
     flatpak uninstall {{ appid }} -y || true
 
-update-flatpak: setup-update-flatpak update-flatpak-gen commit-update-flatpak
+update-flatpak: flatpak-setup-upstream-repo flatpak-gen-manifest flatpak-commit-upstream
+
+update-flatpak-test: flatpak-setup-upstream-repo flatpak-gen-manifest build-and-installf runf
 
 # deps: flatpak-builder git-lfs
 build-and-installf: uninstallf
@@ -79,11 +81,11 @@ build-and-installf: uninstallf
         --install-deps-from=flathub \
         --repo=repo \
         flatpak-out \
-        {{ repo-name }}/app/{{ appid }}/{{ appid }}.json
+        {{ appid }}.json
 
-sdk-version := "24.08"
+sdk-version := "25.08"
 
-install-sdk:
+flatpak-install-sdk:
     flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
     flatpak install --noninteractive --user flathub \
         org.freedesktop.Platform//{{ sdk-version }} \
@@ -94,8 +96,7 @@ install-sdk:
 repo-name := "flatpak-repo"
 branch-name := 'update-' + name
 
-# pip install aiohttp toml
-setup-update-flatpak:
+flatpak-setup-upstream-repo:
     rm -rf {{ repo-name }}
     git clone https://github.com/wiiznokes/cosmic-flatpak.git {{ repo-name }}
     git -C {{ repo-name }} remote add upstream https://github.com/pop-os/cosmic-flatpak.git
@@ -109,15 +110,21 @@ setup-update-flatpak:
     git -C {{ repo-name }} checkout -b {{ branch-name }}
     git -C {{ repo-name }} push origin {{ branch-name }}
 
+flatpak-install-flatpak-builder-tools:
     rm -rf flatpak-builder-tools
     git clone https://github.com/flatpak/flatpak-builder-tools --branch master --depth 1
+    pip install aiohttp tomlkit
 
-update-flatpak-gen:
-    python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py Cargo.lock -o {{ repo-name }}/app/{{ appid }}/cargo-sources.json
-    cp flatpak_schema.json {{ repo-name }}/app/{{ appid }}/{{ appid }}.json
-    sed -i "s/###commit###/$(git rev-parse HEAD)/g" {{ repo-name }}/app/{{ appid }}/{{ appid }}.json
+flatpak-gen-manifest:
+    python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py Cargo.lock -o cargo-sources.json
+    cp flatpak_schema.json {{ appid }}.json
+    sed -i "s/###commit###/$(git rev-parse HEAD)/g" {{ appid }}.json
 
-commit-update-flatpak:
+flatpak-cp-gen-to-repo:
+    cp {{ appid }}.json {{ repo-name }}/app/{{ appid }}/{{ appid }}.json
+    cp cargo-sources.json {{ repo-name }}/app/{{ appid }}/cargo-sources.json
+
+flatpak-commit-upstream: flatpak-cp-gen-to-repo
     git -C {{ repo-name }} add .
     git -C {{ repo-name }} commit -m "Update {{ name }}"
     git -C {{ repo-name }} push origin {{ branch-name }}
