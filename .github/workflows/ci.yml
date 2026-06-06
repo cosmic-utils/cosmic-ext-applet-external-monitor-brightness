@@ -15,7 +15,6 @@ env:
 jobs:
   build:
     name: Rust tests
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -30,7 +29,6 @@ jobs:
 
   clippy:
     name: Clippy
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -45,7 +43,6 @@ jobs:
 
   fmt:
     name: Rustfmt
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -56,9 +53,16 @@ jobs:
 
   prettier:
     name: Prettier fmt
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - name: Prettier
         run: npx prettier --check .
+
+  vendor:
+    name: Cargo vendor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Vendor
+        run: cargo vendor
