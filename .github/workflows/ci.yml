@@ -17,7 +17,7 @@ jobs:
     name: Rust tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: rustup update
       - uses: Swatinem/rust-cache@v2
 
@@ -31,7 +31,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: rustup update
       - uses: Swatinem/rust-cache@v2
 
@@ -45,7 +45,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: rustup update
 
       - name: Run rustfmt
@@ -55,7 +55,7 @@ jobs:
     name: Prettier fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Prettier
         run: npx prettier --check .
 
@@ -63,6 +63,6 @@ jobs:
     name: Cargo vendor
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Vendor
         run: cargo vendor
