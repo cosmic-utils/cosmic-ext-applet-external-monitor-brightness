@@ -111,7 +111,7 @@ impl AppState {
 
         match kind {
             PopupKind::Popup => {
-                self.send(EventToSub::Refresh);
+                self.send(EventToSub::RefreshBrightness);
 
                 let mut popup_settings = self.core.applet.get_popup_settings(
                     self.core.main_window_id().unwrap(),
@@ -361,7 +361,8 @@ impl cosmic::Application for AppState {
             }
             AppMsg::ConfigChanged(config) => self.config = config,
             AppMsg::Refresh => {
-                self.send(EventToSub::Refresh);
+                // Manual refresh also discovers connected and disconnected displays.
+                self.send(EventToSub::RescanDisplays);
             }
         }
         Task::none()
