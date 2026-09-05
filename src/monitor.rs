@@ -9,7 +9,6 @@ use cosmic::iced::{
     stream,
 };
 use ddc_hi::{Ddc, Display};
-use tokio::sync::watch::Receiver;
 
 use crate::app::AppMsg;
 
@@ -26,23 +25,28 @@ pub struct MonitorInfo {
 
 #[derive(Debug, Clone)]
 pub enum EventToSub {
-    Refresh,
+    /// Refresh brightness values using the cached display handles.
+    RefreshBrightness,
+    /// Re-enumerate connected displays and replace the cached display handles.
+    RescanDisplays,
     Set(DisplayId, ScreenBrightness),
 }
 
 enum State {
     Waiting,
     Fetch,
-    Ready(
-        HashMap<DisplayId, Arc<Mutex<Display>>>,
-        Receiver<EventToSub>,
-    ),
+    Ready(HashMap<DisplayId, Arc<Mutex<Display>>>),
 }
 
 pub fn sub() -> impl Stream<Item = AppMsg> {
     stream::channel(
         100,
         |mut output: cosmic::iced::futures::channel::mpsc::Sender<AppMsg>| async move {
+            // Keep the receiver outside `State` so rescans can leave `Ready` without
+            // disconnecting the sender while enumeration is retried.
+            let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::RefreshBrightness);
+            rx.mark_unchanged();
+
             let mut state = State::Waiting;
             let mut failed_attempts = 0;
 
@@ -99,21 +103,18 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
 
                         debug!("end enumerate");
 
-                        let (tx, mut rx) = tokio::sync::watch::channel(EventToSub::Refresh);
-                        rx.mark_unchanged();
-
                         output
-                            .send(AppMsg::SubscriptionReady((res, tx)))
+                            .send(AppMsg::SubscriptionReady((res, tx.clone())))
                             .await
                             .unwrap();
-                        state = State::Ready(displays, rx);
+                        state = State::Ready(displays);
                     }
-                    State::Ready(displays, rx) => {
+                    State::Ready(displays) => {
                         rx.changed().await.unwrap();
 
                         let last = rx.borrow_and_update().clone();
                         match last {
-                            EventToSub::Refresh => {
+                            EventToSub::RefreshBrightness => {
                                 for (id, display) in displays {
                                     let res = display
                                         .lock()
@@ -134,6 +135,14 @@ pub fn sub() -> impl Stream<Item = AppMsg> {
                                         Err(err) => error!("{:?}", err),
                                     }
                                 }
+                            }
+                            EventToSub::RescanDisplays => {
+                                // The Fetch state performs a full DDC enumeration and sends the
+                                // resulting monitor list back to the application.
+                                // Start each rescan with a fresh retry budget.
+                                failed_attempts = 0;
+                                duration = Duration::from_millis(50);
+                                state = State::Fetch;
                             }
                             EventToSub::Set(id, value) => {
                                 debug_assert!(value <= 100);
