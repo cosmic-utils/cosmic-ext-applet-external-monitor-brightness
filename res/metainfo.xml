@@ -8,9 +8,11 @@
     <name>External Monitor Brightness</name>
     <name xml:lang="cs">Jas externího monitoru</name>
     <name xml:lang="hu">Külső Monitor Fényerőszabályzó</name>
+    <name xml:lang="pl">Jasność Zewnętrznego Minitora</name>
     <summary>Change brightness of external monitors via DDC/CI protocol</summary>
     <summary xml:lang="cs">Měňte jas externích monitorů skrze protokol DDC/CI</summary>
     <summary xml:lang="hu">Külső monitorok fényerejének szabályozása a DDC/CI protokollon keresztül</summary>
+    <summary xml:lang="pl">Zmień jasność zewnętrznego monitora przez protokół DDC/CI</summary>
 
     <metadata_license>MIT</metadata_license>
     <project_license>GPL-3.0-only</project_license>
@@ -41,6 +43,7 @@
             system dark mode.</p>
         <p xml:lang="cs">Měňte jas externích monitorů skrze protokol DDC/CI. Můžete také rychle přepínat tmavý režim systému.</p>
         <p xml:lang="hu">Állítsd be a külső monitorok fényerejét a DDC/CI protokoll segítségével. A rendszer sötét módjára is gyorsan át lehet váltani.</p>
+        <p xml:lang="pl">Zmień jasność zewnętrznego monitora przez protokół DDC/CI. Możesz również szybko zmienić na tryb ciemny.</p>
     </description>
 
 
@@ -53,6 +56,7 @@
             <caption>The applet.</caption>
             <caption xml:lang="cs">Ukázka appletu.</caption>
             <caption xml:lang="hu">A kisalkalmazás.</caption>
+            <caption xml:lang="pl">Przykładowy wygląd apletu.</caption>
         </screenshot>
     </screenshots>
 
