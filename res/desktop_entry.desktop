@@ -9,7 +9,7 @@ Comment=Change brightness of external monitors via DDC/CI protocol
 Comment[cs]=Měňte jas externích monitorů skrze protokol DDC/CI
 Comment[fr]=Modifier la luminosité des moniteurs externes via le protocole DDC/CI
 Comment[hu]=Külső monitorok fényerejének szabályozása a DDC/CI protokollon keresztül
-Comment[hu]=Zmień jasność zewnętrznego monitora przez protokół DDC/CI
+Comment[pl]=Zmień jasność zewnętrznego monitora przez protokół DDC/CI
 
 Type=Application
 Exec=cosmic-ext-applet-external-monitor-brightness
